@@ -6,20 +6,16 @@ setup(
     version='0.0.1',
     description='Static site generator',
     url='https://github.com/aromanovich/carcade',
-
     author='Anton Romanovich',
     author_email='anthony.romanovich@gmail.com',
-
     packages=['carcade', 'carcade.commands'],
     package_dir={'carcade': 'carcade'},
     package_data={'carcade': ['template/*/.gitkeep']},
-
     entry_points={
         'console_scripts': [
             'carcade = carcade.commands:main',
         ],
     },
-
     install_requires=[
         'argh==0.21.2',
         'Jinja2==2.6',

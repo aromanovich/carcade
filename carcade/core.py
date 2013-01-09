@@ -108,7 +108,7 @@ def create_jinja2_environment(language):
     env = Environment(loader=FileSystemLoader('layouts'),
                       extensions=['jinja2.ext.i18n'])
     try:
-        with open('./translations/%s.mo' % language) as translations_file:
+        with open('./translations/.%s.mo' % language) as translations_file:
             translations = gettext.GNUTranslations(translations_file)
         env.install_gettext_translations(translations, newstyle=True)
     except IOError:

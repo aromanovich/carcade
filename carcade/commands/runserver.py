@@ -38,7 +38,7 @@ class Builder(threading.Thread):
     def run(self):
         while True:
             self._new_changes_event.wait()
-            sh('cd %s && build.py' % PROJECT_DIR)
+            sh('cd %s && carcade build' % PROJECT_DIR)
             self._new_changes_event.clear()
             self._http_server.shutdown()
 
@@ -62,7 +62,7 @@ def main():
 
     www_dir = os.path.join(PROJECT_DIR, 'www')
     if not os.path.exists(www_dir):
-        sh('cd %s && build.py' % PROJECT_DIR)
+        sh('cd %s && carcade build' % PROJECT_DIR)
 
     while True:
         os.chdir(www_dir)

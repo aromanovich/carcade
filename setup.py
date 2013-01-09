@@ -10,23 +10,22 @@ setup(
     author='Anton Romanovich',
     author_email='anthony.romanovich@gmail.com',
 
-    packages=['carcade'],
-    include_package_data = True,
-    package_data = {
-        '': ['template/*/.gitkeep'],
+    packages=['carcade', 'carcade.commands'],
+    package_dir={'carcade': 'carcade'},
+    package_data={'carcade': ['template/*/.gitkeep']},
+
+    entry_points={
+        'console_scripts': [
+            'carcade = carcade.commands:main',
+        ],
     },
 
-    scripts = [
-        'carcade/commands/init.py',
-        'carcade/commands/build.py',
-        'carcade/commands/runserver.py',
-    ],
-
     install_requires=[
-        'distribute',
+        'argh==0.21.2',
         'Jinja2==2.6',
-        'watchdog==0.6.0',
         'Markdown==2.2.1',
         'PyYAML==3.10',
+        'watchdog==0.6.0',
+        'translate-toolkit==1.9.0'
     ],
 )

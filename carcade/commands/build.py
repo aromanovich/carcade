@@ -20,7 +20,7 @@ def main():
 
     for translation in glob.glob('translations/*.po'):
         language, ext = os.path.splitext(os.path.basename(translation))
-        sh('msgfmt %s -o ./translations/.%s' % (translation, language + '.mo'))
+        sh('pocompile %s ./translations/.%s' % (translation, language + '.mo'))
 
     build(build_dir)
     prev_build_dir = os.path.exists('./www') and os.readlink('./www')
@@ -33,7 +33,3 @@ def main():
         sh('rm -rf %s' % prev_build_dir)
 
     print 'Done.'
-
-
-if __name__ == '__main__':
-    main()

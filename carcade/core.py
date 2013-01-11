@@ -8,6 +8,7 @@ import os.path
 import yaml
 import markdown
 from jinja2 import Environment, FileSystemLoader, contextfunction
+from webassets import Environment as AssetsEnvironment
 
 sys.path.append(os.getcwd())
 import carcade_settings
@@ -104,18 +105,30 @@ def url_for(context, name, language=None):
     return '/' + path_for(name, language=language)
 
 
-def create_jinja2_environment(language):
-    env = Environment(loader=FileSystemLoader('layouts'),
-                      extensions=['jinja2.ext.i18n'])
+def create_jinja2_environment(build_directory, language):
+    jinja2_env = Environment(
+        loader=FileSystemLoader('layouts'),
+        extensions=['jinja2.ext.i18n', 'webassets.ext.jinja2.AssetsExtension'])
+
+    assets_env = AssetsEnvironment()
+    assets_env.load_path = ['static']
+    assets_env.directory = build_directory
+    assets_env.url = '/'
+    assets_env.manifest = False
+    assets_env.cache = False
+    for bundle_name, bundle in carcade_settings.BUNDLES.iteritems():
+        assets_env.register(bundle_name, bundle)
+    jinja2_env.assets_environment = assets_env
+
     try:
         with open('./translations/.%s.mo' % language) as translations_file:
             translations = gettext.GNUTranslations(translations_file)
-        env.install_gettext_translations(translations, newstyle=True)
+        jinja2_env.install_gettext_translations(translations, newstyle=True)
     except IOError:
-        env.install_null_translations(newstyle=True)
+        jinja2_env.install_null_translations(newstyle=True)
 
-    env.globals.update(url_for=url_for, LANGUAGE=language)
-    return env
+    jinja2_env.globals.update(url_for=url_for, LANGUAGE=language)
+    return jinja2_env
 
 
 def create_tree(pages_root, language):
@@ -140,8 +153,8 @@ def create_tree(pages_root, language):
     return root
 
 
-def build(build_dir):
+def build(build_directory):
     for language in carcade_settings.LANGUAGES:
-        jinja2_env = create_jinja2_environment(language)
+        jinja2_env = create_jinja2_environment(build_directory, language)
         root = create_tree('./pages/', language)
-        root.render(jinja2_env, build_dir)
+        root.render(jinja2_env, build_directory)

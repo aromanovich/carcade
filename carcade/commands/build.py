@@ -13,11 +13,6 @@ def main():
     build_dir = '.build-%s' % int(time.time())
     sh('cp -r ./static ./%s' % build_dir)
 
-    lessc_command = 'lessc --compress ' \
-        '%(build_dir)s/less/styles.less > ' \
-        '%(build_dir)s/css/styles.css' % {'build_dir': build_dir}
-    sh(lessc_command)
-
     for translation in glob.glob('translations/*.po'):
         language, ext = os.path.splitext(os.path.basename(translation))
         sh('pocompile %s ./translations/.%s' % (translation, language + '.mo'))

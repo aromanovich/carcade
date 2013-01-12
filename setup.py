@@ -24,6 +24,5 @@ setup(
         'Markdown==2.2.1',
         'PyYAML==3.10',
         'watchdog==0.6.0',
-        'translate-toolkit==1.9.0'
     ],
 )

@@ -2,6 +2,7 @@
 import os
 import time
 import glob
+import polib
 
 from carcade.core import build
 from carcade.utils import sh
@@ -15,7 +16,7 @@ def main():
 
     for translation in glob.glob('translations/*.po'):
         language, ext = os.path.splitext(os.path.basename(translation))
-        sh('pocompile %s ./translations/.%s' % (translation, language + '.mo'))
+        polib.pofile(translation).save_as_mofile('translations/.%s.mo' % language)
 
     build(build_dir)
     prev_build_dir = os.path.exists('./www') and os.readlink('./www')

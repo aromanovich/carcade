@@ -4,7 +4,9 @@ import glob
 import codecs
 import gettext
 import os.path
+import tempfile
 
+import polib
 import yaml
 import markdown
 from jinja2 import Environment, FileSystemLoader, contextfunction
@@ -121,8 +123,10 @@ def create_jinja2_environment(build_directory, language):
     jinja2_env.assets_environment = assets_env
 
     try:
-        with open('./translations/.%s.mo' % language) as translations_file:
-            translations = gettext.GNUTranslations(translations_file)
+        po_file = polib.pofile('./translations/%s.po' % language)
+        with tempfile.NamedTemporaryFile() as mo_file:
+            po_file.save_as_mofile(mo_file.name)
+            translations = gettext.GNUTranslations(mo_file)
         jinja2_env.install_gettext_translations(translations, newstyle=True)
     except IOError:
         jinja2_env.install_null_translations(newstyle=True)

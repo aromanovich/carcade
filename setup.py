@@ -3,7 +3,7 @@ from setuptools import setup
 
 setup(
     name='carcade',
-    version='0.0.2',
+    version='0.0.3',
     description='Static site generator',
     url='https://github.com/aromanovich/carcade',
     author='Anton Romanovich',
@@ -19,6 +19,7 @@ setup(
     install_requires=[
         'argh==0.21.2',
         'Jinja2==2.6',
+        'polib==1.0.2',
         'webassets==0.8',
         'Markdown==2.2.1',
         'PyYAML==3.10',

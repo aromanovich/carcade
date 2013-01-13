@@ -4,4 +4,4 @@ python:
 install:
   - python setup.py install
 script:
-  - nosetests --verbosity=2 --nocapture
+  - nosetests --verbosity=2

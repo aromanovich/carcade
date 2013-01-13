@@ -5,8 +5,6 @@ from carcade.core import create_tree
 
 class Test(unittest.TestCase):
     def test(self):
-        import os
-        print os.getcwd()
         tree = create_tree('./tests/fixture/', 'ru')
         expected_tree_structure = {
             'a': {

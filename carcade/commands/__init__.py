@@ -1,3 +1,6 @@
+import os
+import sys
+
 from argh import ArghParser
 
 from . import init as _init, \

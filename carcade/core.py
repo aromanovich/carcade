@@ -1,5 +1,4 @@
 import os
-import sys
 import glob
 import codecs
 import gettext
@@ -22,42 +21,45 @@ class Node(object):
         self.children.append(page)
         page.ascendant = self
 
-    def render(self, jinja2_env, build_directory):
+    def render(self, jinja2_env, build_dir):
         for child in self.children:
-            child.render(jinja2_env, build_directory)
+            child.render(jinja2_env, build_dir)
 
 
 class Page(Node):
-    def __init__(self, pages_root, page_directory, language):
+    def __init__(self, pages_root, page_dir, language=None):
         super(Page, self).__init__()
-        self.source_directory = page_directory
-        self.name = os.path.relpath(self.source_directory, pages_root)
+        self.source_dir = page_dir
+        self.name = os.path.relpath(self.source_dir, pages_root)
         self.language = language
         self.context = {
             'PAGE_NAME': self.name
         }
 
-        for f in self._data_files('md'):
-            var_name, suffix = os.path.basename(f.name).split('.', 1)
-            self.context[var_name] = markdown.markdown(f.read())
+        for file in self._data_files('md'):
+            var_name, suffix = os.path.basename(file.name).split('.', 1)
+            self.context[var_name] = markdown.markdown(file.read())
 
-        for f in self._data_files('yaml'):
-            data = yaml.load(f.read())
+        for file in self._data_files('yaml'):
+            data = yaml.load(file.read())
             if data:
                 self.context.update(data)
 
     def _data_files(self, extension):
-        pattern = '*.%s.%s' % (self.language, extension)
-        for filename in glob.glob(os.path.join(self.source_directory, pattern)):
-            with codecs.open(filename, 'r', 'utf-8') as f:
-                yield f
+        pattern = '*'
+        if self.language:
+            pattern += '.%s' % self.language
+        pattern += '.%s' % extension
 
-    def render(self, jinja2_env, build_directory):
-        super(Page, self).render(jinja2_env, build_directory)
+        for filename in glob.glob(os.path.join(self.source_dir, pattern)):
+            with codecs.open(filename, 'r', 'utf-8') as file:
+                yield file
+
+    def render(self, jinja2_env, build_dir):
+        super(Page, self).render(jinja2_env, build_dir)
 
         # Retrieve template
-        template = jinja2_env.get_template(
-            carcade_settings.LAYOUTS.get(self.name, carcade_settings.DEFAULT_LAYOUT))
+        template = jinja2_env.get_template(carcade_settings.LAYOUTS[self.name])
 
         # Collect descendant page contexts
         subpages = []
@@ -79,19 +81,19 @@ class Page(Node):
         })
 
         target_filename = os.path.join(
-            build_directory, path_for(self.name, language=self.language), 'index.html')
+            build_dir, path_for(self.name, language=self.language), 'index.html')
 
-        target_directory = os.path.dirname(target_filename)
-        if not os.path.exists(target_directory):
-            os.makedirs(target_directory)
+        target_dir = os.path.dirname(target_filename)
+        if not os.path.exists(target_dir):
+            os.makedirs(target_dir)
 
-        with codecs.open(target_filename, 'w', 'utf-8') as f:
-            f.write(template.render(**context))
+        with codecs.open(target_filename, 'w', 'utf-8') as file:
+            file.write(template.render(**context))
 
 
 def path_for(name, language=None):
     url = ''
-    if language != carcade_settings.DEFAULT_LANGUAGE:
+    if language and language != carcade_settings.DEFAULT_LANGUAGE:
         url += '%s/' % language
     if name != carcade_settings.DEFAULT_PAGE:
         url += '%s/' % name
@@ -104,49 +106,63 @@ def url_for(context, name, language=None):
     return '/' + path_for(name, language=language)
 
 
-def create_jinja2_environment(build_directory, language):
-    jinja2_env = Environment(
-        loader=FileSystemLoader('layouts'),
-        extensions=['jinja2.ext.i18n', 'webassets.ext.jinja2.AssetsExtension'])
-
+def create_assets_environment(build_dir):
     assets_env = AssetsEnvironment()
-    assets_env.load_path = ['static']
-    assets_env.directory = build_directory
-    assets_env.url = '/'
-    assets_env.manifest = False
-    assets_env.cache = False
+    assets_env.config.update({
+        'load_path': ['static'],
+        'directory': build_dir,
+        'url': '/',
+        'manifest': False,
+        'cache': False,
+    })
     for bundle_name, bundle in carcade_settings.BUNDLES.iteritems():
         assets_env.register(bundle_name, bundle)
-    jinja2_env.assets_environment = assets_env
+    return assets_env
 
+
+def get_translations(language):
     try:
         po_file = polib.pofile('./translations/%s.po' % language)
         with tempfile.NamedTemporaryFile() as mo_file:
             po_file.save_as_mofile(mo_file.name)
-            translations = gettext.GNUTranslations(mo_file)
-        jinja2_env.install_gettext_translations(translations, newstyle=True)
+            return gettext.GNUTranslations(mo_file)
     except IOError:
-        jinja2_env.install_null_translations(newstyle=True)
+        return None
 
-    jinja2_env.globals.update(url_for=url_for, LANGUAGE=language)
+
+def create_jinja2_environment(build_dir, language=None):
+    jinja2_env = Environment(
+        loader=FileSystemLoader('layouts'),
+        extensions=['jinja2.ext.i18n', 'webassets.ext.jinja2.AssetsExtension'])
+    jinja2_env.globals.update(url_for=url_for)
+
+    jinja2_env.assets_environment = create_assets_environment(build_dir)
+
+    jinja2_env.install_null_translations(newstyle=True)
+    if language:
+        jinja2_env.globals.update(LANGUAGE=language)
+        translations = get_translations(language)
+        if translations:
+            jinja2_env.install_gettext_translations(translations, newstyle=True)
+
     return jinja2_env
 
 
-def create_tree(pages_root, language):
+def create_tree(pages_root, language=None):
     # Build site tree from down to top
     forest = {}  # `forest` contains growing site subtrees
-    for page_directory, directories, files in os.walk(pages_root, topdown=False):
-        if page_directory == pages_root:
+    for page_dir, dirs, files in os.walk(pages_root, topdown=False):
+        if page_dir == pages_root:
             # Reached the top. We're done
             break
 
-        page = Page(pages_root, page_directory, language)
-        for directory in directories:
-            subpage_directory = os.path.join(page_directory, directory)
-            subpage = forest.pop(subpage_directory)  # Pop subtree from `forest`
+        page = Page(pages_root, page_dir, language=language)
+        for dir in dirs:
+            subpage_dir = os.path.join(page_dir, dir)
+            subpage = forest.pop(subpage_dir)  # Pop subtree from `forest`
             page.add_child(subpage)  # Attach it to ascendant page
 
-        forest[page_directory] = page  # Put resulting subtree to the `forest`
+        forest[page_dir] = page  # Put resulting subtree to the `forest`
 
     root = Node()
     for page in forest.values():
@@ -154,10 +170,11 @@ def create_tree(pages_root, language):
     return root
 
 
-def build(carcade_settings_, build_directory):
+def build(carcade_settings_, build_dir):
     global carcade_settings  # XXX!!!
     carcade_settings = carcade_settings_
-    for language in carcade_settings.LANGUAGES:
-        jinja2_env = create_jinja2_environment(build_directory, language)
-        root = create_tree('./pages/', language)
-        root.render(jinja2_env, build_directory)
+
+    for language in getattr(carcade_settings, 'LANGUAGES', [None]):
+        jinja2_env = create_jinja2_environment(build_dir, language=language)
+        root = create_tree('./pages/', language=language)
+        root.render(jinja2_env, build_dir)

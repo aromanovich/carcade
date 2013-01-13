@@ -5,7 +5,7 @@ from carcade.core import create_tree
 
 class Test(unittest.TestCase):
     def test(self):
-        tree = create_tree('./tests/fixture/', 'ru')
+        tree = create_tree('./tests/fixture/')
         expected_tree_structure = {
             'a': {
                 'a/1': {
@@ -26,6 +26,3 @@ class Test(unittest.TestCase):
         for subtree in tree.children:
             self.assert_tree_structure(
                 subtree, expected_tree_structure[subtree.name])
-
-
-

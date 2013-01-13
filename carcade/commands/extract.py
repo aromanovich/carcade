@@ -4,8 +4,6 @@ from collections import defaultdict
 import polib
 from carcade.core import create_jinja2_environment
 
-import carcade_settings
-
 
 def get_template_source(jinja2_env, template):
     template_source, _, _ = \
@@ -14,6 +12,8 @@ def get_template_source(jinja2_env, template):
 
 
 def main():
+    sys.path.append(os.getcwd())
+    import carcade_settings
     jinja2_env = create_jinja2_environment(None, None)
     
     po = polib.POFile()

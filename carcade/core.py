@@ -12,9 +12,6 @@ import markdown
 from jinja2 import Environment, FileSystemLoader, contextfunction
 from webassets import Environment as AssetsEnvironment
 
-sys.path.append(os.getcwd())
-import carcade_settings
-
 
 class Node(object):
     def __init__(self):
@@ -157,7 +154,9 @@ def create_tree(pages_root, language):
     return root
 
 
-def build(build_directory):
+def build(carcade_settings_, build_directory):
+    global carcade_settings  # XXX!!!
+    carcade_settings = carcade_settings_
     for language in carcade_settings.LANGUAGES:
         jinja2_env = create_jinja2_environment(build_directory, language)
         root = create_tree('./pages/', language)

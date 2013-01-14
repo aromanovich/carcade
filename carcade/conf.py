@@ -13,7 +13,7 @@ class Settings(object):
     
     def configure(self, settings_module):
         try:
-            module = importlib.import_module(settings_module)
+            module = __import__(settings_module)
         except ImportError as e:
             raise ImportError("Could not import settings '%s' (Is it on sys.path?): %s" % (settings_module, e))
 

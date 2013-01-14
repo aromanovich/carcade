@@ -1,6 +1,5 @@
 import os
 import sys
-import importlib
 
 from carcade import global_settings
 

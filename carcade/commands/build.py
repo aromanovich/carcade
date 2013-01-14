@@ -15,7 +15,7 @@ def main():
     build_dir = '.build-%s' % int(time.time())
     shutil.copytree('static', build_dir)
 
-    build('carcade_settings', build_dir)
+    build(build_dir)
     prev_build_dir = os.path.exists('www') and os.readlink('www')
 
     # Link new build to ./www

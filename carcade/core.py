@@ -8,17 +8,42 @@ import markdown
 
 from carcade.conf import settings
 from carcade.utils import path_for
-from carcade.environments import create_jinja2_environment
+from carcade.environments import create_jinja2_environment, url_for
 
 
 class Node(object):
-    def __init__(self):
+    def __init__(self, pages_root, page_dir):
         self.children = []
+        self.name = None
         self.ascendant = None
+        
+        self.source_dir = page_dir
+        self.name = os.path.relpath(self.source_dir, pages_root)
+
+        self.ordering = None
+        ordering_filepath = os.path.join(self.source_dir, 'ordering.txt')
+        if os.path.exists(ordering_filepath):
+            with codecs.open(ordering_filepath, 'r', 'utf-8') as ordering_file:
+                data = yaml.load(ordering_file.read())
+                self.ordering = data.get('ordering')
 
     def add_child(self, page):
         self.children.append(page)
         page.ascendant = self
+
+    def order(self):
+        if isinstance(self.ordering, list):
+            def key(page):
+                name = self.name and os.path.relpath(page.name, self.name) or page.name
+                print self.ordering
+                if name in self.ordering:
+                    return self.ordering.index(name)
+                else:
+                    return sys.maxint
+            self.children.sort(key=key)
+
+        for child in self.children:
+            child.order()
 
     def render(self, jinja2_env, build_dir):
         for child in self.children:
@@ -27,9 +52,7 @@ class Node(object):
 
 class Page(Node):
     def __init__(self, pages_root, page_dir, language=None):
-        super(Page, self).__init__()
-        self.source_dir = page_dir
-        self.name = os.path.relpath(self.source_dir, pages_root)
+        super(Page, self).__init__(pages_root, page_dir)
         self.language = language
         self.context = {
             'PAGE_NAME': self.name
@@ -44,6 +67,7 @@ class Page(Node):
             if data:
                 self.context.update(data)
 
+
     def _data_files(self, extension):
         pattern = '*'
         if self.language:
@@ -53,6 +77,9 @@ class Page(Node):
         for filename in glob.glob(os.path.join(self.source_dir, pattern)):
             with codecs.open(filename, 'r', 'utf-8') as file_:
                 yield file_
+
+    def url(self):
+        return url_for(self.name, language=self.language)
 
     def render(self, jinja2_env, build_dir):
         super(Page, self).render(jinja2_env, build_dir)
@@ -73,13 +100,21 @@ class Page(Node):
                 index = idx
             siblings.append(sibling.context)
 
+        node = self
+        while node.ascendant:
+            node = node.ascendant
+        
+
         context = dict(self.context, **{
+            'ROOT': node,
+            'PAGE': self,
             'SUBPAGES': subpages,  # TODO Make naming more consistent
             'SIBLINGS': siblings,
             'INDEX': index  # XXX
         })
 
-        target_dir = os.path.join(build_dir, path_for(self.name, language=self.language))
+        target_dir = os.path.join(
+            build_dir, path_for(self.name, language=self.language))
         target_filename = os.path.join(target_dir, 'index.html')
 
         if not os.path.exists(target_dir):
@@ -105,14 +140,15 @@ def create_tree(pages_root, language=None):
 
         forest[page_dir] = page  # Put resulting subtree to the `forest`
 
-    root = Node()
+    root = Node(pages_root, pages_root)
     for page in forest.values():
         root.add_child(page)
     return root
 
 
-def build(carcade_settings, build_dir):
+def build(build_dir):
     for language in settings.LANGUAGES:
         jinja2_env = create_jinja2_environment(build_dir, language=language)
         root = create_tree('./pages/', language=language)
+        root.order()
         root.render(jinja2_env, build_dir)

@@ -2,22 +2,16 @@ import gettext
 import tempfile
 
 import polib
-from webassets import Environment as AssetsEnvironment
-from jinja2 import Environment, FileSystemLoader, contextfunction
+import jinja2
+import webassets
 
 from carcade.conf import settings
 from carcade.utils import path_for
 
 
-@contextfunction
-def url_for(context, name, language=None):
-    language = language or context.resolve('LANGUAGE')
-    return '/' + path_for(name, language=language)
-
-
 def create_assets_environment(build_dir):
-    assets_env = AssetsEnvironment()
-    assets_env.config.update({
+    env = webassets.Environment()
+    env.config.update({
         'load_path': ['static'],
         'directory': build_dir,
         'url': '/',
@@ -25,8 +19,8 @@ def create_assets_environment(build_dir):
         'cache': False,
     })
     for bundle_name, bundle in settings.BUNDLES.iteritems():
-        assets_env.register(bundle_name, bundle)
-    return assets_env
+        env.register(bundle_name, bundle)
+    return env
 
 
 def get_translations(language):
@@ -39,19 +33,30 @@ def get_translations(language):
         return None
 
 
+def url_for(name, language=None):
+    language = language or context.resolve('LANGUAGE')
+    return '/' + path_for(name, language=language)
+
+
+@jinja2.contextfunction
+def jinja2_url_for(context, name, language=None):
+    language = language or context.resolve('LANGUAGE')
+    return url_for(name, language=language)
+
+
 def create_jinja2_environment(build_dir, language=None):
-    jinja2_env = Environment(
-        loader=FileSystemLoader('layouts'),
+    env = jinja2.Environment(
+        loader=jinja2.FileSystemLoader('layouts'),
         extensions=['jinja2.ext.i18n', 'webassets.ext.jinja2.AssetsExtension'])
-    jinja2_env.globals.update(url_for=url_for)
+    env.globals.update(url_for=jinja2_url_for)
 
-    jinja2_env.assets_environment = create_assets_environment(build_dir)
+    env.assets_environment = create_assets_environment(build_dir)
 
-    jinja2_env.install_null_translations(newstyle=True)
+    env.install_null_translations(newstyle=True)
     if language:
-        jinja2_env.globals.update(LANGUAGE=language)
+        env.globals.update(LANGUAGE=language)
         translations = get_translations(language)
         if translations:
-            jinja2_env.install_gettext_translations(translations, newstyle=True)
+            env.install_gettext_translations(translations, newstyle=True)
 
-    return jinja2_env
+    return env

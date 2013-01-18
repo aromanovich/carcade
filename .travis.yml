@@ -3,5 +3,6 @@ python:
   - "2.7"
 install:
   - python setup.py install
+  - pip install -r requirements-dev.txt
 script:
-  - nosetests --verbosity=2
+  - ./test.sh

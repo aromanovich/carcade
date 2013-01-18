@@ -2,7 +2,7 @@
 from collections import defaultdict
 
 import polib
-from carcade.environments import create_jinja2_environment
+from carcade.environments import create_jinja2_env
 
 
 def get_template_source(jinja2_env, template):
@@ -12,8 +12,8 @@ def get_template_source(jinja2_env, template):
 
 
 def main():
-    jinja2_env = create_jinja2_environment(None, None)
-    
+    jinja2_env = create_jinja2_env()
+
     po = polib.POFile()
     po.metadata = {
         'Content-Type': 'text/plain; charset=utf-8',
@@ -31,5 +31,5 @@ def main():
     for message, occurrences in messages.iteritems():
         entry = polib.POEntry(msgid=message, msgstr=message, occurrences=occurrences)
         po.append(entry)
-    
+
     po.save('./translations/initial.po')

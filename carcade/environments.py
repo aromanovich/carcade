@@ -1,62 +1,65 @@
-import gettext
-import tempfile
-
-import polib
 import jinja2
 import webassets
 
-from carcade.conf import settings
 from carcade.utils import path_for
 
 
-def create_assets_environment(build_dir):
+def create_assets_env(source_dir, build_dir, bundles):
+    """Creates webassets environment with registered `bundles`.
+
+    :param source_dir: directory that will be searched for source files
+    :param build_dir: output directory (bundle's `output` will be treated
+                      relative to it)
+    :param bundles: dictionary with bundle names as keys and to bundles
+                    (:class:`webassets.Bundle`) as values
+    """
     env = webassets.Environment()
     env.config.update({
-        'load_path': ['static'],
+        'load_path': [source_dir],
         'directory': build_dir,
         'url': '/',
         'manifest': False,
         'cache': False,
     })
-    for bundle_name, bundle in settings.BUNDLES.iteritems():
+    for bundle_name, bundle in bundles.iteritems():
         env.register(bundle_name, bundle)
     return env
 
 
-def get_translations(language):
-    try:
-        po_file = polib.pofile('./translations/%s.po' % language)
-        with tempfile.NamedTemporaryFile() as mo_file:
-            po_file.save_as_mofile(mo_file.name)
-            return gettext.GNUTranslations(mo_file)
-    except IOError:
-        return None
-
-
-def url_for(name, language=None):
-    language = language or context.resolve('LANGUAGE')
-    return '/' + path_for(name, language=language)
+def url_for(page_name, language=None):
+    """Returns URL of the page in a specified language."""
+    return '/' + path_for(page_name, language=language)
 
 
 @jinja2.contextfunction
-def jinja2_url_for(context, name, language=None):
+def jinja2_url_for(context, page_name, language=None):
+    """Returns URL of the page in a specified language. If language
+    isn't specified, then it's taken from current template context.
+    """
     language = language or context.resolve('LANGUAGE')
-    return url_for(name, language=language)
+    return url_for(page_name, language=language)
 
 
-def create_jinja2_environment(build_dir, language=None):
-    env = jinja2.Environment(
+def create_jinja2_env(translations=None, assets_env=None):
+    """Creates :class:`jinja2.Environment`. Installs `translations` if
+    specified; installs webassets extension with `assets_env` if specified.
+
+    :type translations: :class:`gettext.GNUTranslations`
+    :type assets_env: :class:`webassets.Environment`
+    """
+    jinja2_env = jinja2.Environment(
         loader=jinja2.FileSystemLoader('layouts'),
-        extensions=['jinja2.ext.i18n', 'webassets.ext.jinja2.AssetsExtension'])
-    env.globals.update(url_for=jinja2_url_for)
+        extensions=['jinja2.ext.i18n'])
+    jinja2_env.globals.update(url_for=jinja2_url_for)
+    jinja2_env.install_null_translations(newstyle=True)
 
-    env.assets_environment = create_assets_environment(build_dir)
+    if assets_env is not None:
+        # :class:`webassets.env.Environment` evaluates to False in boolean context :/
+        jinja2_env = jinja2_env.overlay(
+            extensions=['webassets.ext.jinja2.AssetsExtension'])
+        jinja2_env.assets_environment = assets_env
 
-    env.install_null_translations(newstyle=True)
-    if language:
-        env.globals.update(LANGUAGE=language)
-        translations = get_translations(language)
-        if translations:
-            env.install_gettext_translations(translations, newstyle=True)
+    if translations:
+        jinja2_env.install_gettext_translations(translations, newstyle=True)
 
-    return env
+    return jinja2_env

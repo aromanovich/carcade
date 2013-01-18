@@ -1,4 +1,5 @@
 import os
+import sys
 import glob
 import codecs
 import os.path
@@ -8,7 +9,9 @@ import markdown
 
 from carcade.conf import settings
 from carcade.utils import path_for
-from carcade.environments import create_jinja2_environment, url_for
+from carcade.i18n import get_translations
+from carcade.environments import \
+    create_jinja2_env, create_assets_env, url_for
 
 
 class Node(object):
@@ -16,7 +19,7 @@ class Node(object):
         self.children = []
         self.name = None
         self.ascendant = None
-        
+
         self.source_dir = page_dir
         self.name = os.path.relpath(self.source_dir, pages_root)
 
@@ -35,7 +38,6 @@ class Node(object):
         if isinstance(self.ordering, list):
             def key(page):
                 name = self.name and os.path.relpath(page.name, self.name) or page.name
-                print self.ordering
                 if name in self.ordering:
                     return self.ordering.index(name)
                 else:
@@ -55,7 +57,8 @@ class Page(Node):
         super(Page, self).__init__(pages_root, page_dir)
         self.language = language
         self.context = {
-            'PAGE_NAME': self.name
+            'PAGE_NAME': self.name,
+            'LANGUAGE': self.language
         }
 
         for md_file in self._data_files('md'):
@@ -66,7 +69,6 @@ class Page(Node):
             data = yaml.load(yaml_file.read())
             if data:
                 self.context.update(data)
-
 
     def _data_files(self, extension):
         pattern = '*'
@@ -103,7 +105,6 @@ class Page(Node):
         node = self
         while node.ascendant:
             node = node.ascendant
-        
 
         context = dict(self.context, **{
             'ROOT': node,
@@ -146,9 +147,25 @@ def create_tree(pages_root, language=None):
     return root
 
 
+def build_(build_dir, language=None):
+    translations = None
+    if language:
+        # Load translations from PO file if it exists
+        translations_path = 'translations/%s.po' % language
+        if os.path.exists(translations_path):
+            translations = get_translations(translations_path)
+
+    assets_env = create_assets_env('static', build_dir, settings.BUNDLES)
+    jinja2_env = create_jinja2_env(translations=translations, assets_env=assets_env)
+
+    root = create_tree('pages', language=language)
+    root.order()
+    root.render(jinja2_env, build_dir)
+
+
 def build(build_dir):
-    for language in settings.LANGUAGES:
-        jinja2_env = create_jinja2_environment(build_dir, language=language)
-        root = create_tree('./pages/', language=language)
-        root.order()
-        root.render(jinja2_env, build_dir)
+    if settings.LANGUAGES:
+        for language in settings.LANGUAGES:
+            build_(build_dir, language=language)
+    else:
+        build_(build_dir)

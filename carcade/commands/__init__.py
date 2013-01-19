@@ -11,10 +11,12 @@ from carcade.conf import settings
 
 
 def runserver():
+    settings.configure('carcade_settings')
     _runserver.main()
 
 
 def build():
+    settings.configure('carcade_settings')
     _build.main()
 
 
@@ -23,12 +25,12 @@ def init(project_name):
 
 
 def extract_translations():
+    settings.configure('carcade_settings')
     _extract.main()
 
 
 def main():
     sys.path.append(os.getcwd())
-    settings.configure('carcade_settings')
 
     parser = ArghParser()
     parser.add_commands([init, build, runserver, extract_translations])

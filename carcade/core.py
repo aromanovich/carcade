@@ -46,27 +46,27 @@ def order_tree(node, ordering_dict, track=[]):
     key = '/'.join(track + ['*'])
     ordering = ordering_dict.get(key)
 
-    if isinstance(ordering, list):
+    if ordering == 'alphabetically':
+        node.children.sort(key=lambda el: el.name)
+    elif isinstance(ordering, list):
         def key(el):
             if el.name in ordering:
                 return ordering.index(el.name)
             else:
                 return len(ordering) + 1
         node.children.sort(key=key)
-    elif ordering == 'alphabetically':
-        node.children.sort(key=lambda el: el.name)
+    else:
+        pass  # TODO Print something
 
     node.children = [order_tree(child, ordering_dict, track=track + [child.name])
                      for child in node.children]
     return node
 
 
-def paginate(iterable, items_per_page):
-    args = [iter(iterable)] * items_per_page
-
+def paginate(items, items_per_page):
     result = []
-    for items in izip_longest(*args):
-        result.append([item for item in items if item is not None])
+    for i in range(0, len(items), items_per_page):
+        result.append(items[i:i + items_per_page])
     return result
 
 
@@ -84,65 +84,91 @@ def paginate_tree(node, pagination_dict, track=[]):
                 page.add_child(item)
             node.add_child(page)
 
-    node.children = [paginate_tree(child, pagination_dict, track=track + [child.name])
-                     for child in node.children]
+    node.children = [
+        paginate_tree(child, pagination_dict, track=track + [child.name])
+        for child in node.children]
     return node
 
 
-def context_tree(node, language=None, track=[]):
+def track_to_path(track):
+    cleaned_track = [part for part in track if part not in ('page1',)]
+    return '/'.join(cleaned_track) 
+
+
+def read_context(dir_, language=None):
+    context = {}
+
+    md_files = yield_files(dir_, language and '.%s.md' % language or '.md')
+    for md_file in md_files:
+        var_name, suffix = os.path.basename(md_file.name).split('.', 1)
+        context[var_name] = markdown.markdown(md_file.read())
+
+    yaml_files = yield_files(dir_, language and '.%s.yaml' % language or '.yaml')
+    for yaml_file in yaml_files:
+        data = yaml.load(yaml_file.read())
+        if data:
+            context.update(data)
+
+    return context
+
+
+def fill_tree(node, language=None, track=[]):
     child_contexts = []
     for child in node.children:
-        context_tree(child, language=language, track=track + [child.name])
+        fill_tree(child, language=language, track=track + [child.name])
         child_contexts.append(child.context)
 
+    path = track_to_path(track)
     context = {
         'NAME': node.name,
-        'PATH': '/'.join(track),
+        'PATH': path,
         'LANGUAGE': language,
-        'PARENT': None,
         'CHILDREN': child_contexts,
     }
 
-    for child_context in child_contexts:
-        child_context['PARENT'] = context
+    for index, child_context in enumerate(child_contexts):
+        prev_sibling = None
+        if index - 1 >= 0:
+            prev_sibling = child_contexts[index - 1]
 
-    if node.name != 'ROOT':
-        md_files = yield_files(
-            node.source_dir, language and '.%s.md' % language or '.md')
-        for md_file in md_files:
-            var_name, suffix = os.path.basename(md_file.name).split('.', 1)
-            context[var_name] = markdown.markdown(md_file.read())
+        next_sibling = None
+        if index + 1 < len(child_contexts):
+            next_sibling = child_contexts[index + 1]
 
-        yaml_files = yield_files(
-            node.source_dir, language and '.%s.yaml' % language or '.yaml')
-        for yaml_file in yaml_files:
-            data = yaml.load(yaml_file.read())
-            if data:
-                context.update(data)
+        child_context.update({
+            'PARENT': context,
+            'SIBLINGS': child_contexts,
+            'PREV_SIBLING': prev_sibling,
+            'NEXT_SIBLING': next_sibling,
+        })
+    
+    context.update(read_context(node.source_dir, language=language))
     node.context = context
     return node
 
 
-def build_tree(jinja2_env, build_dir, tree, root=None, track=[]):
-    for child in tree.children:
+def build_tree(jinja2_env, build_dir, node, root=None, track=[]):
+    for child in node.children:
         build_tree(jinja2_env, build_dir, child,
-                   root=root or tree, track=track + [child.name])
+                   root=root or node, track=track + [child.name])
 
-    if tree.name == 'ROOT':
+    if node.name == 'ROOT':
         return
 
-    path = '/'.join(track)
-    template = jinja2_env.get_template(settings.LAYOUTS[path])
-
+    path = track_to_path(track)
     target_dir = os.path.join(
-        build_dir, path_for(path, language=tree.context['LANGUAGE']))
+        build_dir, path_for(path, language=node.context['LANGUAGE']))
     target_filename = os.path.join(target_dir, 'index.html')
+
+    if os.path.exists(target_filename):
+        return
 
     if not os.path.exists(target_dir):
         os.makedirs(target_dir)
-
+    
+    template = jinja2_env.get_template(settings.LAYOUTS[path])
     with codecs.open(target_filename, 'w', 'utf-8') as target_file:
-        target_file.write(template.render(ROOT=root.context, **tree.context))
+        target_file.write(template.render(ROOT=root.context, **node.context))
 
 
 def build_(build_dir, language=None):
@@ -158,8 +184,7 @@ def build_(build_dir, language=None):
     tree = create_tree('./pages', 'ROOT')
     tree = order_tree(tree, settings.ORDERING)
     tree = paginate_tree(tree, settings.PAGINATION)
-    tree = context_tree(tree, language=language)
-
+    tree = fill_tree(tree, language=language)
     build_tree(jinja2_env, build_dir, tree)
 
 

@@ -101,7 +101,7 @@ def read_context(dir_, language=None):
     md_files = yield_files(dir_, language and '.%s.md' % language or '.md')
     for md_file in md_files:
         var_name, suffix = os.path.basename(md_file.name).split('.', 1)
-        context[var_name] = markdown.markdown(md_file.read())
+        context[var_name] = markdown.markdown(md_file.read(), ['extra'])
 
     yaml_files = yield_files(dir_, language and '.%s.yaml' % language or '.yaml')
     for yaml_file in yaml_files:

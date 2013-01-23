@@ -1,8 +1,6 @@
 import jinja2
 import webassets
 
-from carcade.utils import path_for
-
 
 def create_assets_env(source_dir, build_dir, bundles):
     """Creates webassets environment with registered `bundles`.
@@ -26,21 +24,18 @@ def create_assets_env(source_dir, build_dir, bundles):
     return env
 
 
-def url_for(page_name, language=None):
-    """Returns URL of the page in a specified language."""
-    return '/' + path_for(page_name, language=language)
+def create_jinja2_url_for(url_for):
+    def jinja2_url_for(context, path, language=None):
+        """Returns URL of the page with `path` in a specified language.
+        If language isn't specified, then it's taken from current template
+        context.
+        """
+        language = language or context.resolve('LANGUAGE')
+        return url_for(path, language=language)
+    return jinja2.contextfunction(jinja2_url_for)
 
 
-@jinja2.contextfunction
-def jinja2_url_for(context, page_name, language=None):
-    """Returns URL of the page in a specified language. If language
-    isn't specified, then it's taken from current template context.
-    """
-    language = language or context.resolve('LANGUAGE')
-    return url_for(page_name, language=language)
-
-
-def create_jinja2_env(translations=None, assets_env=None):
+def create_jinja2_env(url_for=None, translations=None, assets_env=None):
     """Creates :class:`jinja2.Environment`. Installs `translations` if
     specified; installs webassets extension with `assets_env` if specified.
 
@@ -50,8 +45,12 @@ def create_jinja2_env(translations=None, assets_env=None):
     jinja2_env = jinja2.Environment(
         loader=jinja2.FileSystemLoader('layouts'),
         extensions=['jinja2.ext.i18n'])
-    jinja2_env.globals.update(url_for=jinja2_url_for)
     jinja2_env.install_null_translations(newstyle=True)
+    
+    if url_for:
+        jinja2_env.globals.update({
+            'url_for': create_jinja2_url_for(url_for),
+        })
 
     if assets_env is not None:
         # :class:`webassets.env.Environment` evaluates to False in boolean context :/

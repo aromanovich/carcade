@@ -14,7 +14,7 @@ class Test(unittest.TestCase):
                 subtree, expected_tree_structure[subtree.name])
 
     def test_creation(self):
-        tree = create_tree('./tests/fixture/', 'ROOT')
+        tree = create_tree('./tests/fixtures/fixture/', 'ROOT')
         expected_tree_structure = {
             'a': {
                 '1': {
@@ -28,7 +28,7 @@ class Test(unittest.TestCase):
         self.assert_tree_structure(tree, expected_tree_structure)
 
     def test_pagination(self):
-        tree = create_tree('./tests/fixture2/', 'ROOT')
+        tree = create_tree('./tests/fixtures/fixture2/', 'ROOT')
         expected_tree_structure = {
             'blog': {
                 'a': {},

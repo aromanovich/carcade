@@ -1,13 +1,13 @@
 import os
 import codecs
 import os.path
-from itertools import izip_longest
+from functools import partial
 
 import yaml
 import markdown
 
 from carcade.conf import settings
-from carcade.utils import path_for
+#from carcade.utils import path_for
 from carcade.i18n import get_translations
 from carcade.environments import create_jinja2_env, create_assets_env
 from carcade.utils import yield_files
@@ -56,7 +56,7 @@ def order_tree(node, ordering_dict, track=[]):
                 return len(ordering) + 1
         node.children.sort(key=key)
     else:
-        pass  # TODO Print something
+        pass  # TODO
 
     node.children = [order_tree(child, ordering_dict, track=track + [child.name])
                      for child in node.children]
@@ -90,11 +90,6 @@ def paginate_tree(node, pagination_dict, track=[]):
     return node
 
 
-def track_to_path(track):
-    cleaned_track = [part for part in track if part not in ('page1',)]
-    return '/'.join(cleaned_track) 
-
-
 def read_context(dir_, language=None):
     context = {}
 
@@ -118,7 +113,7 @@ def fill_tree(node, language=None, track=[]):
         fill_tree(child, language=language, track=track + [child.name])
         child_contexts.append(child.context)
 
-    path = track_to_path(track)
+    path = '/'.join(track)
     context = {
         'NAME': node.name,
         'PATH': path,
@@ -147,6 +142,18 @@ def fill_tree(node, language=None, track=[]):
     return node
 
 
+def slugify_tree(node, track=[]):
+    for child in node.children:
+        slugify_tree(child, track=track + [child.name])
+    
+    if node.name in ('ROOT', 'page1'):
+        node.slug = ''
+    else:
+        node.slug = node.name
+
+    return node
+
+
 def build_tree(jinja2_env, build_dir, node, root=None, track=[]):
     for child in node.children:
         build_tree(jinja2_env, build_dir, child,
@@ -155,9 +162,9 @@ def build_tree(jinja2_env, build_dir, node, root=None, track=[]):
     if node.name == 'ROOT':
         return
 
-    path = track_to_path(track)
+    path = '/'.join(track)
     target_dir = os.path.join(
-        build_dir, path_for(path, language=node.context['LANGUAGE']))
+        build_dir, path_for(root, path, language=node.context['LANGUAGE']))
     target_filename = os.path.join(target_dir, 'index.html')
 
     if os.path.exists(target_filename):
@@ -171,7 +178,39 @@ def build_tree(jinja2_env, build_dir, node, root=None, track=[]):
         target_file.write(template.render(ROOT=root.context, **node.context))
 
 
+def map_track_to_slugs(node, track=[]):
+    if not track:
+        return [node.slug]
+    
+    head = track[0]
+    rest = track[1:]
+    return [node.slug] + map_track_to_slugs(node.get_child(head), track=rest)
+
+
+def url_for(tree, path, language=None):
+    return '/' + path_for(tree, path, language=language)
+
+
+def path_for(tree, path, language=None):
+    base_url = ''
+    if language and language != settings.DEFAULT_LANGUAGE:
+        base_url += '%s/' % language
+
+    if path == settings.DEFAULT_PAGE:
+        return base_url
+    
+    slugs = map_track_to_slugs(tree, track=path.split('/'))
+    cleaned_slugs = filter(bool, slugs)
+    return base_url + '/'.join(cleaned_slugs) + '/'
+
+
 def build_(build_dir, language=None):
+    tree = create_tree('./pages', 'ROOT')
+    tree = order_tree(tree, settings.ORDERING)
+    tree = paginate_tree(tree, settings.PAGINATION)
+    tree = slugify_tree(tree)
+    tree = fill_tree(tree, language=language)
+ 
     translations = None
     if language:
         translations_path = 'translations/%s.po' % language
@@ -179,12 +218,11 @@ def build_(build_dir, language=None):
             translations = get_translations(translations_path)
 
     assets_env = create_assets_env('static', build_dir, settings.BUNDLES)
-    jinja2_env = create_jinja2_env(translations=translations, assets_env=assets_env)
+    jinja2_env = create_jinja2_env(
+        url_for=partial(url_for, tree),
+        translations=translations,
+        assets_env=assets_env)
 
-    tree = create_tree('./pages', 'ROOT')
-    tree = order_tree(tree, settings.ORDERING)
-    tree = paginate_tree(tree, settings.PAGINATION)
-    tree = fill_tree(tree, language=language)
     build_tree(jinja2_env, build_dir, tree)
 
 

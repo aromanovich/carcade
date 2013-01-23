@@ -20,10 +20,10 @@ class WebassetsEnvironmentTest(unittest.TestCase):
 
     def test(self):
         bundle = Bundle('one.css', 'two.css', output='styles.css')
-        assets_env = create_assets_env('./tests/bundle', self.build_dir, {})
+        assets_env = create_assets_env('./tests/fixtures/bundle', self.build_dir, {})
         bundle.build(env=assets_env)
 
-        self.assertIn('styles.css', os.listdir(self.build_dir))
+        self.assertTrue('styles.css' in os.listdir(self.build_dir))
 
 
 class Jinja2EnvironmentTest(unittest.TestCase):
@@ -40,12 +40,12 @@ class Jinja2EnvironmentTest(unittest.TestCase):
         self.assertRaises(
             TemplateSyntaxError, jinja2_env.from_string, template)
 
-        assets_env = create_assets_env('./tests/bundle', self.build_dir, {
+        assets_env = create_assets_env('./tests/fixtures/bundle', self.build_dir, {
             'css': Bundle('one.css', 'two.css', output='styles.css')    
         })
         jinja2_env = create_jinja2_env(assets_env=assets_env)
         result = jinja2_env.from_string(template).render()
-        self.assertIn('styles.css', result)
+        self.assertTrue('styles.css' in result)
 
     def test_translations_integration(self):
         template = '{% trans %}Hey!{% endtrans %}'
@@ -54,7 +54,7 @@ class Jinja2EnvironmentTest(unittest.TestCase):
         result = jinja2_env.from_string(template).render()
         self.assertEqual('Hey!', result)
 
-        translations = get_translations('tests/ru.po')
+        translations = get_translations('tests/fixtures/ru.po')
         jinja2_env = create_jinja2_env(translations=translations)
         result = jinja2_env.from_string(template).render()
         self.assertEqual(u'Привет!', result)

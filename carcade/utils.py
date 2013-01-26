@@ -3,6 +3,9 @@ import glob
 import os
 import codecs
 
+import yaml
+import markdown
+
 from carcade.conf import settings
 
 
@@ -10,21 +13,78 @@ def sh(shell_command):
     subprocess.call(shell_command, shell=True)
 
 
-def path_for(name, language=None):
-    url = ''
-    if language and language != settings.DEFAULT_LANGUAGE:
-        url += '%s/' % language
-    if name != settings.DEFAULT_PAGE:
-        url += '%s/' % name
-    return url
+def sort(list_, order, key=None):
+    """Sorts `list_` by explicitly specified `order`.
+
+    >>> sort(['a', 'b', 'c'],
+    ...      ['c', 'b', 'xxx', 'a', 'yyy'])
+    ['c', 'b', 'a']
+
+    >>> sort(['a', 'b', 'c', 'd'],
+    ...      ['c', 'b', 'a'])
+    ['c', 'b', 'a', 'd']
+
+    >>> sort([('a', 1), ('b', 2)],
+    ...      ['b', 'a'],
+    ...      key=lambda el: el[0])
+    [('b', 2), ('a', 1)]
+    """
+    def key_(el):
+        k = key(el) if key else el
+        if k in order:
+            return order.index(k)
+        else:
+            return len(order) + 1
+    return sorted(list_, key=key_)
 
 
-def yield_files(directory, extension):
-    pattern = '*'
-    if not extension.startswith('.'):
-        pattern += '.'
-    pattern += extension
+def paginate(items, items_per_page):
+    """Splits `items` list into lists of size `items_per_page`.
 
-    for filename in glob.glob(os.path.join(directory, pattern)):
+    >>> paginate([1, 2, 3], 1)
+    [[1], [2], [3]]
+
+    >>> paginate([1, 2, 3, 4, 5, 6, 7], 3)
+    [[1, 2, 3], [4, 5, 6], [7]]
+    
+    >>> paginate([], 3)
+    []
+    """
+    result = []
+    for i in range(0, len(items), items_per_page):
+        result.append(items[i:i + items_per_page])
+    return result
+
+
+def yield_files(dir_, suffix):
+    """Yiels files from `directory` which name ends with `suffix`."""
+    for filename in glob.glob(os.path.join(dir_, '*' + suffix)):
         with codecs.open(filename, 'r', 'utf-8') as file_:
             yield file_
+
+
+def read_context(dir_, language=None):
+    """Searches `dir_` for markdown- and yaml-files and returns context
+    dictionary with parsed data.
+
+    Markdown- and yaml-files are files which names matched to ``<name>.(md|yaml)``
+    or ``<name>.<language>.(md|yaml)`` pattern if `language` specified.
+
+    First parses each markdown-file and puts result into context under the
+    `<name>` key. Then parses each yaml-file and updates context with resulting
+    dictionary (note: update will override markdown data if there are duplicate keys).
+    """
+    context = {}
+
+    md_files = yield_files(dir_, language and '.%s.md' % language or '.md')
+    for md_file in md_files:
+        var_name, suffix = os.path.basename(md_file.name).split('.', 1)
+        context[var_name] = markdown.markdown(md_file.read(), ['extra'])
+
+    yaml_files = yield_files(dir_, language and '.%s.yaml' % language or '.yaml')
+    for yaml_file in yaml_files:
+        data = yaml.load(yaml_file.read())
+        if data:
+            context.update(data)
+
+    return context

@@ -1,6 +1,6 @@
 import unittest
 
-from carcade.core import create_tree, paginate_tree, order_tree
+from carcade.core import create_tree, paginate_tree, sort_tree
 
 
 class Test(unittest.TestCase):
@@ -42,7 +42,7 @@ class Test(unittest.TestCase):
         }
         self.assert_tree_structure(tree, expected_tree_structure)
 
-        tree = order_tree(tree, {'blog/*': 'alphabetically'})
+        tree = sort_tree(tree, {'blog/*': 'alphabetically'})
         tree = paginate_tree(tree, {'blog/*': 2})
         expected_tree_structure = {
             'blog': {
@@ -60,7 +60,7 @@ class Test(unittest.TestCase):
                 },
                 'page4': {
                     'g': {},
-                }
+                },
             },
         }
         self.assert_tree_structure(tree, expected_tree_structure)

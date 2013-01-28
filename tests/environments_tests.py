@@ -14,7 +14,7 @@ from carcade.environments import create_assets_env, create_jinja2_env
 class WebassetsEnvironmentTest(unittest.TestCase):
     def setUp(self):
         self.build_dir = tempfile.mkdtemp()
-    
+
     def tearDown(self):
         shutil.rmtree(self.build_dir)
 
@@ -29,7 +29,7 @@ class WebassetsEnvironmentTest(unittest.TestCase):
 class Jinja2EnvironmentTest(unittest.TestCase):
     def setUp(self):
         self.build_dir = tempfile.mkdtemp()
-    
+
     def tearDown(self):
         shutil.rmtree(self.build_dir)
 
@@ -41,7 +41,7 @@ class Jinja2EnvironmentTest(unittest.TestCase):
             TemplateSyntaxError, jinja2_env.from_string, template)
 
         assets_env = create_assets_env('./tests/fixtures/bundle', self.build_dir, {
-            'css': Bundle('one.css', 'two.css', output='styles.css')    
+            'css': Bundle('one.css', 'two.css', output='styles.css')
         })
         jinja2_env = create_jinja2_env(assets_env=assets_env)
         result = jinja2_env.from_string(template).render()

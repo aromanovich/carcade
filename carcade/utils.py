@@ -26,7 +26,7 @@ def sort(list_, order, key=None):
 
     >>> sort([('a', 1), ('b', 2)],
     ...      ['b', 'a'],
-    ...      key=lambda el: el[0])
+    ...      key=lambda el: el[0])  # Sort tuples by first element
     [('b', 2), ('a', 1)]
     """
     def key_(el):
@@ -88,3 +88,10 @@ def read_context(dir_, language=None):
             context.update(data)
 
     return context
+
+
+def get_template_source(jinja2_env, template):
+    """Returns the source text of the given `template`."""
+    template_source, _, _ = \
+        jinja2_env.loader.get_source(jinja2_env, template)
+    return template_source

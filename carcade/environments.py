@@ -35,7 +35,8 @@ def create_jinja2_url_for(url_for):
     return jinja2.contextfunction(jinja2_url_for)
 
 
-def create_jinja2_env(url_for=None, translations=None, assets_env=None):
+def create_jinja2_env(url_for=None, translations=None, assets_env=None,
+                      layouts_dir='layouts'):
     """Creates :class:`jinja2.Environment`. Installs `translations` if
     specified; installs webassets extension with `assets_env` if specified.
 
@@ -43,10 +44,10 @@ def create_jinja2_env(url_for=None, translations=None, assets_env=None):
     :type assets_env: :class:`webassets.Environment`
     """
     jinja2_env = jinja2.Environment(
-        loader=jinja2.FileSystemLoader('layouts'),
+        loader=jinja2.FileSystemLoader(layouts_dir),
         extensions=['jinja2.ext.i18n'])
     jinja2_env.install_null_translations(newstyle=True)
-    
+
     if url_for:
         jinja2_env.globals.update({
             'url_for': create_jinja2_url_for(url_for),

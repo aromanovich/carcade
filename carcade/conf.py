@@ -10,6 +10,7 @@ class Settings(object):
     def configure(self, settings_module):
         try:
             module = __import__(settings_module)
+            reload(module)
         except ImportError as e:
             raise ImportError(
                 'Could not import settings \'%s\': %s' % (settings_module, e))

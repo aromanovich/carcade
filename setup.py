@@ -13,7 +13,7 @@ setup(
     package_data={'carcade': ['template/*/.gitkeep']},
     entry_points={
         'console_scripts': [
-            'carcade = carcade.commands:main',
+            'carcade = carcade.cli:main',
         ],
     },
     install_requires=[

@@ -1,4 +1,5 @@
 import os
+import shutil
 import codecs
 import os.path
 from functools import partial
@@ -6,7 +7,7 @@ from functools import partial
 from carcade.conf import settings
 from carcade.i18n import get_translations
 from carcade.environments import create_jinja2_env, create_assets_env
-from carcade.utils import sort, paginate, yield_files, read_context
+from carcade.utils import sort, paginate, read_context
 
 
 class Node(object):
@@ -63,7 +64,7 @@ def paginate_tree(node, pagination_dict, path=[]):
 
     if items_per_page:
         pages = paginate(node.children, items_per_page)
-        
+
         node.children = []
         for index, page_items in enumerate(pages, start=1):
             page = Node(node.source_dir, 'page%i' % index)
@@ -108,7 +109,7 @@ def fill_tree(node, language=None, path=[]):
             'PREV_SIBLING': prev_sibling,
             'NEXT_SIBLING': next_sibling,
         })
-    
+
     return node
 
 
@@ -122,7 +123,7 @@ def build_tree(jinja2_env, build_dir, node, root=None, path=[]):
 
     path_str = '/'.join(path)
     url = url_for(root, path_str, language=node.context['LANGUAGE'])
-    
+
     target_dir = os.path.join(build_dir, url.lstrip('/'))
     target_filename = os.path.join(target_dir, 'index.html')
 
@@ -131,7 +132,7 @@ def build_tree(jinja2_env, build_dir, node, root=None, path=[]):
 
     if not os.path.exists(target_dir):
         os.makedirs(target_dir)
-    
+
     template = jinja2_env.get_template(settings.LAYOUTS[path_str])
     with codecs.open(target_filename, 'w', 'utf-8') as target_file:
         context = dict(node.context, ROOT=root.context)
@@ -173,19 +174,21 @@ def url_for(tree, path_str, language=None):
         return base_url
 
 
-def build_(build_dir, language=None):
-    tree = create_tree('./pages', 'ROOT')
+def build_(source_dir, build_dir, language=None):
+    source_path = lambda *args: os.path.join(source_dir, *args)
+
+    tree = create_tree(source_path('pages'), 'ROOT')
     tree = sort_tree(tree, settings.ORDERING)
     tree = paginate_tree(tree, settings.PAGINATION)
     tree = fill_tree(tree, language=language)
- 
+
     translations = None
     if language:
-        translations_path = 'translations/%s.po' % language
+        translations_path = source_path('translations/%s.po' % language)
         if os.path.exists(translations_path):
             translations = get_translations(translations_path)
 
-    assets_env = create_assets_env('static', build_dir, settings.BUNDLES)
+    assets_env = create_assets_env(source_path('static'), build_dir, settings.BUNDLES)
     jinja2_env = create_jinja2_env(
         url_for=partial(url_for, tree),
         assets_env=assets_env,
@@ -194,9 +197,15 @@ def build_(build_dir, language=None):
     build_tree(jinja2_env, build_dir, tree)
 
 
-def build(build_dir):
-    if settings.LANGUAGES:
-        for language in settings.LANGUAGES:
-            build_(build_dir, language=language)
-    else:
-        build_(build_dir)
+def build(source_dir, build_dir):
+    shutil.copytree(os.path.join(source_dir, 'static'), build_dir)
+    try:
+        if settings.LANGUAGES:
+            for language in settings.LANGUAGES:
+                build_(source_dir, build_dir, language=language)
+        else:
+            build_(source_dir, build_dir)
+    except Exception as e:
+        shutil.rmtree(build_dir)
+        raise e
+

@@ -15,7 +15,7 @@ def runserver():
     _runserver.main()
 
 
-def build(build_dir, atomic=False):
+def build(build_dir='www', atomic=True):
     settings.configure('carcade_settings')
     _build.main(build_dir, atomic=atomic)
 

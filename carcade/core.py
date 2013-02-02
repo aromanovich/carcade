@@ -27,6 +27,30 @@ class Node(object):
             if child.name == name:
                 return child
 
+        for child in self.children:
+            if not isinstance(child, PageNode):
+                continue
+            page_child = child.get_child(name)
+            if page_child:
+                return page_child
+
+
+    def get_slug(self):
+        if self.name == 'ROOT':
+            return ''
+        return self.name
+
+
+class PageNode(Node):
+    def __init__(self, source_dir, index):
+        self.index = index
+        super(PageNode, self).__init__(source_dir, settings.PAGE_NAME % index)
+
+    def get_slug(self):
+        if self.index == 1:
+            return ''
+        return super(PageNode, self).get_slug()
+
 
 def create_tree(page_dir, page_name):
     node = Node(page_dir, page_name)
@@ -67,7 +91,7 @@ def paginate_tree(node, pagination_dict, path=[]):
 
         node.children = []
         for index, page_items in enumerate(pages, start=1):
-            page = Node(node.source_dir, 'page%i' % index)
+            page = PageNode(node.source_dir, index)
             for item in page_items:
                 page.add_child(item)
             node.add_child(page)
@@ -143,18 +167,19 @@ def get_slugs(node, path=[]):
     """If page at `path` exists, returns slugs of the nodes lies on that path;
     otherwise throws an exception.
     """
-    slug = node.name
-    if node.name in ('ROOT', 'page1'):
+    slug = node.get_slug()
+
+    if not path:  # Recursion base
+        return [slug]
+
+    if isinstance(node, PageNode):
         slug = ''
 
-    if path:
-        head, rest = path[0], path[1:]
-        child = node.get_child(head)
-        if not child:
-            pass  # TODO Raise error
-        return [slug] + get_slugs(child, path=rest)
-    else:
-        return [slug]
+    head, rest = path[0], path[1:]
+    child = node.get_child(head)
+    if not child:
+        pass  # TODO Raise error
+    return [slug] + get_slugs(child, path=rest)
 
 
 def url_for(tree, path_str, language=None):

@@ -7,3 +7,4 @@ LAYOUTS = {}
 BUNDLES = {}
 ORDERING = {}
 PAGINATION = {}
+PAGE_NAME = 'page%i'

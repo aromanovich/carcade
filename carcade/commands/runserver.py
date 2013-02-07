@@ -1,12 +1,10 @@
 import os
-import shutil
 import threading
 import SimpleHTTPServer
 import BaseHTTPServer
 
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
-
 
 
 PROJECT_DIR = os.getcwd()

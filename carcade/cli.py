@@ -7,7 +7,8 @@ from carcade.conf import settings
 from carcade.commands import init as _init, \
                              build as _build, \
                              runserver as _runserver, \
-                             extract as _extract
+                             extract as _extract, \
+                             debug_trees as _debug_trees
 
 
 def runserver():
@@ -29,9 +30,14 @@ def extract_translations():
     _extract.main()
 
 
+def debug_trees():
+    settings.configure('carcade_settings')
+    _debug_trees.main('trees')
+
+
 def main():
     sys.path.append(os.getcwd())
 
     parser = ArghParser()
-    parser.add_commands([init, build, runserver, extract_translations])
+    parser.add_commands([init, build, runserver, debug_trees, extract_translations])
     parser.dispatch(completion=False)  # completion = False to suppress warning

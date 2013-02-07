@@ -54,7 +54,7 @@ def create_jinja2_env(url_for=None, translations=None, assets_env=None,
         })
 
     # Empty :class:`webassets.env.Environment` evaluates to False in boolean context
-    if assets_env is not None:        
+    if assets_env is not None:
         jinja2_env = jinja2_env.overlay(
             extensions=['webassets.ext.jinja2.AssetsExtension'])
         jinja2_env.assets_environment = assets_env

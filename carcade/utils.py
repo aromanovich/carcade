@@ -1,7 +1,8 @@
-import subprocess
-import glob
 import os
+import glob
+import subprocess
 import codecs
+import itertools
 
 import yaml
 import markdown
@@ -76,12 +77,18 @@ def read_context(dir_, language=None):
     """
     context = {}
 
-    md_files = yield_files(dir_, language and '.%s.md' % language or '.md')
+    md_files = yield_files(dir_, '.md')
+    if language:
+        lang_specific_md_files = yield_files(dir_, '.%s.md' % language)
+        md_files = itertools.chain(md_files, lang_specific_md_files)
     for md_file in md_files:
         var_name, suffix = os.path.basename(md_file.name).split('.', 1)
         context[var_name] = markdown.markdown(md_file.read(), ['extra'])
 
-    yaml_files = yield_files(dir_, language and '.%s.yaml' % language or '.yaml')
+    yaml_files = yield_files(dir_, '.yaml')
+    if language:
+        lang_specific_yaml_files = yield_files(dir_, '.%s.yaml' % language)
+        yaml_files = itertools.chain(yaml_files, lang_specific_yaml_files)
     for yaml_file in yaml_files:
         data = yaml.load(yaml_file.read())
         if data:

@@ -34,7 +34,6 @@ class Node(object):
             if page_child:
                 return page_child
 
-
     def get_slug(self):
         if self.name == 'ROOT':
             return ''
@@ -157,7 +156,12 @@ def build_tree(jinja2_env, build_dir, node, root=None, path=[]):
     if not os.path.exists(target_dir):
         os.makedirs(target_dir)
 
-    template = jinja2_env.get_template(settings.LAYOUTS[path_str])
+    if isinstance(node, PageNode):
+        layout_key = '/'.join(path[:-1])
+    else:
+        layout_key = path_str
+
+    template = jinja2_env.get_template(settings.LAYOUTS[layout_key])
     with codecs.open(target_filename, 'w', 'utf-8') as target_file:
         context = dict(node.context, ROOT=root.context)
         target_file.write(template.render(**context))
@@ -213,7 +217,8 @@ def build_(source_dir, build_dir, language=None):
         if os.path.exists(translations_path):
             translations = get_translations(translations_path)
 
-    assets_env = create_assets_env(source_path('static'), build_dir, settings.BUNDLES)
+    assets_env = create_assets_env(
+        source_path('static'), build_dir, settings.BUNDLES)
     jinja2_env = create_jinja2_env(
         url_for=partial(url_for, tree),
         assets_env=assets_env,
@@ -233,4 +238,3 @@ def build(source_dir, build_dir):
     except Exception as e:
         shutil.rmtree(build_dir)
         raise e
-

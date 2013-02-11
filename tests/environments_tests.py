@@ -35,11 +35,6 @@ class Jinja2EnvironmentTest(unittest.TestCase):
 
     def test_webassets_integration(self):
         template = '{% assets "css" %}{{ ASSET_URL }}{% endassets %}'
-
-        jinja2_env = create_jinja2_env()
-        self.assertRaises(
-            TemplateSyntaxError, jinja2_env.from_string, template)
-
         assets_env = create_assets_env('./tests/fixtures/bundle', self.build_dir, {
             'css': Bundle('one.css', 'two.css', output='styles.css')
         })

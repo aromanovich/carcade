@@ -35,17 +35,18 @@ def create_jinja2_url_for(url_for):
     return jinja2.contextfunction(jinja2_url_for)
 
 
-def create_jinja2_env(url_for=None, translations=None, assets_env=None,
-                      layouts_dir='layouts'):
-    """Creates :class:`jinja2.Environment`. Installs `translations` if
+def create_jinja2_env(layouts_dir='layouts', url_for=None,
+                      translations=None, assets_env=None):
+    """Creates :class:`jinja2.Environment` w. Installs `translations` if
     specified; installs webassets extension with `assets_env` if specified.
 
+    :type layouts_dir: path to templates directory
     :type translations: :class:`gettext.GNUTranslations`
     :type assets_env: :class:`webassets.Environment`
     """
     jinja2_env = jinja2.Environment(
         loader=jinja2.FileSystemLoader(layouts_dir),
-        extensions=['jinja2.ext.i18n'])
+        extensions=['jinja2.ext.i18n', 'webassets.ext.jinja2.AssetsExtension'])
     jinja2_env.install_null_translations(newstyle=True)
 
     if url_for:
@@ -53,10 +54,8 @@ def create_jinja2_env(url_for=None, translations=None, assets_env=None,
             'url_for': create_jinja2_url_for(url_for),
         })
 
-    # Empty :class:`webassets.env.Environment` evaluates to False in boolean context
-    if assets_env is not None:        
-        jinja2_env = jinja2_env.overlay(
-            extensions=['webassets.ext.jinja2.AssetsExtension'])
+    # Empty webassets environment evaluates to False in boolean context
+    if assets_env is not None:
         jinja2_env.assets_environment = assets_env
 
     if translations:

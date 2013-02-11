@@ -1,5 +1,4 @@
 import os
-import shutil
 import threading
 import SimpleHTTPServer
 import BaseHTTPServer
@@ -8,29 +7,32 @@ from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
 
-
-PROJECT_DIR = os.getcwd()
-
-
 class EventHandler(FileSystemEventHandler):
     """Watches all files except those that are hidden or are in
     the hidden directory.
     """
 
-    def __init__(self, new_changes_event):
+    def __init__(self, project_dir, new_changes_event):
         """
+        :param project_dir: project directory being watched
         :param new_changes_event: event to be set when changes occur
         :type new_changes_event: :class:`threading.Event`
         """
+        self._project_dir = project_dir
         self._new_changes_event = new_changes_event
         super(EventHandler, self).__init__()
 
     def on_any_event(self, event):
         path = os.path.realpath(event.src_path)
+        rel_path = os.path.relpath(path, self._project_dir)
 
-        # If file isn't hidden
-        if not os.path.basename(path).startswith('.'):
-            self._new_changes_event.set()
+        rest = rel_path
+        while rest:
+            rest, head = os.path.split(rest)
+            if head.startswith('.'):
+                return
+
+        self._new_changes_event.set()
 
 
 class Builder(threading.Thread):
@@ -56,9 +58,9 @@ class Builder(threading.Thread):
             self._new_changes_event.clear()
 
 
-def main():
+def serve(host='localhost', port=8000):
     http_server = BaseHTTPServer.HTTPServer(
-        ('', 8000), SimpleHTTPServer.SimpleHTTPRequestHandler)
+        (host, port), SimpleHTTPServer.SimpleHTTPRequestHandler)
 
     # Event to be set when the project has changes and needs to be rebuilt
     new_changes_event = threading.Event()
@@ -70,19 +72,17 @@ def main():
     observer = Observer()
     observer.start()
 
-    www_dir = os.path.join(PROJECT_DIR, 'www')
-    event_handler = EventHandler(new_changes_event)
+    project_dir = os.getcwd()
+    www_dir = os.path.join(project_dir, 'www')
+    event_handler = EventHandler(project_dir, new_changes_event)
+    observer.schedule(event_handler, path=project_dir, recursive=True)
 
+    from carcade.cli import build  # Circular import
     while True:
-        os.chdir(PROJECT_DIR)
-        try:
-            from carcade.cli import build  # Circular import
-            build(www_dir)
-            os.chdir(www_dir)
-        except Exception as e:
-            print 'Ooops...', e
+        os.chdir(project_dir)
+        build(to=www_dir, atomically=True)
+        if not os.path.exists(www_dir):
+            return 1
+        os.chdir(www_dir)
 
-        watch = observer.schedule(event_handler, path=PROJECT_DIR, recursive=True)
         http_server.serve_forever()
-        # Disable observer during build time due to the bugs in watchdog
-        observer.unschedule(watch)

@@ -3,7 +3,7 @@ from setuptools import setup
 
 setup(
     name='carcade',
-    version='0.0.5',
+    version='0.0.6',
     description='Static site generator',
     url='https://github.com/aromanovich/carcade',
     author='Anton Romanovich',

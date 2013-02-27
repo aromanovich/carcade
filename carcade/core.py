@@ -1,4 +1,5 @@
 import os
+import re
 import shutil
 import codecs
 import os.path
@@ -161,7 +162,12 @@ def build_tree(jinja2_env, build_dir, node, root=None, path=[]):
     else:
         layout_key = path_str
 
-    template = jinja2_env.get_template(settings.LAYOUTS[layout_key])
+    layout = settings.DEFAULT_LAYOUT
+    for pattern, layout_path in settings.LAYOUTS.items():
+        if re.match(pattern, layout_key):
+            layout = layout_path
+
+    template = jinja2_env.get_template(layout)
     with codecs.open(target_filename, 'w', 'utf-8') as target_file:
         context = dict(node.context, ROOT=root.context)
         target_file.write(template.render(**context))

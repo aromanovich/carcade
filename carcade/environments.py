@@ -1,6 +1,8 @@
 import jinja2
 import webassets
 
+from carcade.utils import create_markdown_parser
+
 
 def create_assets_env(source_dir, build_dir, bundles):
     """Creates webassets environment with registered `bundles`.
@@ -37,7 +39,7 @@ def create_jinja2_url_for(url_for):
 
 def create_jinja2_env(layouts_dir='layouts', url_for=None,
                       translations=None, assets_env=None):
-    """Creates :class:`jinja2.Environment` w. Installs `translations` if
+    """Creates :class:`jinja2.Environment`. Installs `translations` if
     specified; installs webassets extension with `assets_env` if specified.
 
     :type layouts_dir: path to templates directory
@@ -48,6 +50,7 @@ def create_jinja2_env(layouts_dir='layouts', url_for=None,
         loader=jinja2.FileSystemLoader(layouts_dir),
         extensions=['jinja2.ext.i18n', 'webassets.ext.jinja2.AssetsExtension'])
     jinja2_env.install_null_translations(newstyle=True)
+    jinja2_env.filters['markdown'] = create_markdown_parser().convert
 
     if url_for:
         jinja2_env.globals.update({

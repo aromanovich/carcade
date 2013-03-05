@@ -64,6 +64,11 @@ def yield_files(dir_, suffix):
             yield file_
 
 
+def create_markdown_parser():
+    """Creates Markdown parser with extensions."""
+    return markdown.Markdown(['extra'])
+
+
 def read_context(dir_, language=None):
     """Searches `dir_` for markdown- and yaml-files and returns context
     dictionary with parsed data.
@@ -78,12 +83,13 @@ def read_context(dir_, language=None):
     context = {}
 
     md_files = yield_files(dir_, '.md')
+    md_parser = create_markdown_parser()
     if language:
         lang_specific_md_files = yield_files(dir_, '.%s.md' % language)
         md_files = itertools.chain(md_files, lang_specific_md_files)
     for md_file in md_files:
         var_name, suffix = os.path.basename(md_file.name).split('.', 1)
-        context[var_name] = markdown.markdown(md_file.read(), ['extra'])
+        context[var_name] = md_parser.convert(md_file.read())
 
     yaml_files = yield_files(dir_, '.yaml')
     if language:

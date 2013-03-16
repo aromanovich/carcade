@@ -9,6 +9,7 @@ from carcade.conf import settings
 from carcade.i18n import get_translations
 from carcade.environments import create_jinja2_env, create_assets_env
 from carcade.utils import sort, paginate, read_context
+from carcade.exceptions import UnknownPathException, UnknownOrderingException
 
 
 class Node(object):
@@ -96,15 +97,19 @@ def create_tree(page_dir, page_name):
 
 def sort_tree(node, ordering_dict):
     path = node.get_path()
-    ordering = ordering_dict.get(path and path + '/*' or '*')
+    key = path and path + '/*' or '*'
+    ordering = ordering_dict.get(key)
 
-    if ordering == 'alphabetically':
-        node.children.sort(key=lambda child: child.name)
-    elif isinstance(ordering, list):
-        node.children = sort(node.children, ordering,
-                             key=lambda child: child.name)
-    else:
-        pass  # TODO
+    if ordering:
+        if ordering == 'alphabetically':
+            node.children.sort(key=lambda child: child.name)
+        elif isinstance(ordering, list):
+            node.children = sort(node.children, ordering,
+                                 key=lambda child: child.name)
+        elif callable(ordering):
+            node.children = ordering(node.children)
+        else:
+            raise UnknownOrderingException(key)
 
     node.children = [sort_tree(child, ordering_dict) for child in node.children]
     return node
@@ -112,7 +117,8 @@ def sort_tree(node, ordering_dict):
 
 def paginate_tree(node, pagination_dict):
     path = node.get_path()
-    items_per_page = pagination_dict.get(path and path + '/*' or '*')
+    key = path and path + '/*' or '*'
+    items_per_page = pagination_dict.get(key)
 
     if items_per_page:
         pages = paginate(node.children, items_per_page)
@@ -165,9 +171,9 @@ def fill_tree(node, language=None):
     return node
 
 
-def build_from_tree(jinja2_env, build_dir, node, root=None):
+def build_site(jinja2_env, build_dir, node, root=None):
     for child in node.children:
-        build_from_tree(jinja2_env, build_dir, child, root=root or node)
+        build_site(jinja2_env, build_dir, child, root=root or node)
 
     if node.name == 'ROOT':
         return
@@ -193,7 +199,7 @@ def build_from_tree(jinja2_env, build_dir, node, root=None):
             .dump(target_filename, encoding='utf-8')
 
 
-def url_for(tree, path, language=None):
+def url_for(root, path, language=None):
     """If page at `path` exists, returns it's root-relative URL;
     otherwise throws an exception.
     """
@@ -201,16 +207,17 @@ def url_for(tree, path, language=None):
     if language and language != settings.DEFAULT_LANGUAGE:
         base_url += '%s/' % language
 
-    node = tree.find_descendant(path)
+    node = root.find_descendant(path)
     if not node:
-        pass  # TODO Raise!
+        raise UnknownPathException(path)
     slugs = node.get_slugs()
 
     if path != settings.DEFAULT_PAGE:
         cleaned_slugs = filter(bool, slugs)
-        return base_url + '/'.join(cleaned_slugs) + '/'
-    else:
-        return base_url
+        if cleaned_slugs:
+            return base_url + '/'.join(cleaned_slugs) + '/'
+
+    return base_url
 
 
 def build_(source_dir, build_dir, language=None):
@@ -234,7 +241,7 @@ def build_(source_dir, build_dir, language=None):
         assets_env=assets_env,
         translations=translations)
 
-    build_from_tree(jinja2_env, build_dir, tree)
+    build_site(jinja2_env, build_dir, tree)
 
 
 def build(source_dir, build_dir):
@@ -245,7 +252,6 @@ def build(source_dir, build_dir):
                 build_(source_dir, build_dir, language=language)
         else:
             build_(source_dir, build_dir)
-    except Exception as e:
+    except Exception:
         shutil.rmtree(build_dir)
-        print traceback.format_exc()
-        raise e
+        raise

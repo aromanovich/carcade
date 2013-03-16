@@ -1,4 +1,5 @@
 import os
+import re
 import glob
 import subprocess
 import codecs
@@ -8,6 +9,30 @@ import yaml
 import markdown
 
 from carcade.conf import settings
+
+
+class RegexResolver(object):
+    def __init__(self, items):
+        self.items = items
+
+    def __getitem__(self, key):
+        for regex, value in self.items:
+            if regex.match(key):
+                return value
+        raise KeyError(key)
+
+    def get(self, key, default=None):
+        try:
+            return self[key]
+        except KeyError:
+            return default
+
+
+def patterns(*args):
+    items = []
+    for pattern, value in args:
+        items.append((re.compile(pattern), value))
+    return RegexResolver(items)
 
 
 def sh(shell_command):
@@ -105,6 +130,5 @@ def read_context(dir_, language=None):
 
 def get_template_source(jinja2_env, template):
     """Returns the source text of the given `template`."""
-    template_source, _, _ = \
-        jinja2_env.loader.get_source(jinja2_env, template)
+    template_source, _, _ = jinja2_env.loader.get_source(jinja2_env, template)
     return template_source

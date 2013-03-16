@@ -2,6 +2,7 @@ import os
 import shutil
 import codecs
 import os.path
+import traceback
 from functools import partial
 
 from carcade.conf import settings
@@ -184,9 +185,8 @@ def build_tree(jinja2_env, build_dir, node, root=None, path=[]):
         layout_key = path_str
 
     template = jinja2_env.get_template(settings.LAYOUTS[layout_key])
-    with codecs.open(target_filename, 'w', 'utf-8') as target_file:
-        context = dict(node.context, ROOT=root.context)
-        target_file.write(template.render(**context))
+    template.stream(ROOT=root.context, **node.context) \
+            .dump(target_filename, encoding='utf-8')
 
 
 def url_for(tree, path_str, language=None):
@@ -243,4 +243,5 @@ def build(source_dir, build_dir):
             build_(source_dir, build_dir)
     except Exception as e:
         shutil.rmtree(build_dir)
+        print traceback.format_exc()
         raise e

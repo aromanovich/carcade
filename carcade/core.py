@@ -35,6 +35,14 @@ class Node(object):
             page_child = child.get_child(name)
             if page_child:
                 return page_child
+    
+    def get_path(self):
+        names = []
+        node = self
+        while node.ascendant:
+            names.append(node.name)
+            node = node.ascendant
+        return '/'.join(reversed(names))
 
     def get_slugs(self):
         slugs = []
@@ -86,9 +94,9 @@ def create_tree(page_dir, page_name):
     return node
 
 
-def sort_tree(node, ordering_dict, path=[]):
-    key = '/'.join(path + ['*'])
-    ordering = ordering_dict.get(key)
+def sort_tree(node, ordering_dict):
+    path = node.get_path()
+    ordering = ordering_dict.get(path and path + '/*' or '*')
 
     if ordering == 'alphabetically':
         node.children.sort(key=lambda child: child.name)
@@ -98,15 +106,13 @@ def sort_tree(node, ordering_dict, path=[]):
     else:
         pass  # TODO
 
-    node.children = [
-        sort_tree(child, ordering_dict, path=path + [child.name])
-        for child in node.children]
+    node.children = [sort_tree(child, ordering_dict) for child in node.children]
     return node
 
 
-def paginate_tree(node, pagination_dict, path=[]):
-    key = '/'.join(path + ['*'])
-    items_per_page = pagination_dict.get(key)
+def paginate_tree(node, pagination_dict):
+    path = node.get_path()
+    items_per_page = pagination_dict.get(path and path + '/*' or '*')
 
     if items_per_page:
         pages = paginate(node.children, items_per_page)
@@ -119,22 +125,22 @@ def paginate_tree(node, pagination_dict, path=[]):
             node.add_child(page)
 
     node.children = [
-        paginate_tree(child, pagination_dict, path=path + [child.name])
+        paginate_tree(child, pagination_dict)
         for child in node.children]
     return node
 
 
-def fill_tree(node, language=None, path=[]):
+def fill_tree(node, language=None):
     context = read_context(node.source_dir, language=language)
 
     child_contexts = []
     for child in node.children:
-        fill_tree(child, language=language, path=path + [child.name])
+        fill_tree(child, language=language)
         child_contexts.append(child.context)
 
     context.update({
         'NAME': node.name,
-        'PATH': '/'.join(path),
+        'PATH': node.get_path(),
         'LANGUAGE': language,
         'CHILDREN': child_contexts,
     })
@@ -159,16 +165,15 @@ def fill_tree(node, language=None, path=[]):
     return node
 
 
-def build_tree(jinja2_env, build_dir, node, root=None, path=[]):
+def build_from_tree(jinja2_env, build_dir, node, root=None):
     for child in node.children:
-        build_tree(jinja2_env, build_dir, child,
-                   root=root or node, path=path + [child.name])
+        build_from_tree(jinja2_env, build_dir, child, root=root or node)
 
     if node.name == 'ROOT':
         return
 
-    path_str = '/'.join(path)
-    url = url_for(root, path_str, language=node.context['LANGUAGE'])
+    path = node.get_path()
+    url = url_for(root, path, language=node.context['LANGUAGE'])
 
     target_dir = os.path.join(build_dir, url.lstrip('/'))
     target_filename = os.path.join(target_dir, 'index.html')
@@ -179,17 +184,16 @@ def build_tree(jinja2_env, build_dir, node, root=None, path=[]):
     if not os.path.exists(target_dir):
         os.makedirs(target_dir)
 
+    layout_key = path
     if isinstance(node, PageNode):
-        layout_key = '/'.join(path[:-1])
-    else:
-        layout_key = path_str
+        layout_key = node.ascendant.get_path()
 
     template = jinja2_env.get_template(settings.LAYOUTS[layout_key])
     template.stream(ROOT=root.context, **node.context) \
             .dump(target_filename, encoding='utf-8')
 
 
-def url_for(tree, path_str, language=None):
+def url_for(tree, path, language=None):
     """If page at `path` exists, returns it's root-relative URL;
     otherwise throws an exception.
     """
@@ -197,12 +201,12 @@ def url_for(tree, path_str, language=None):
     if language and language != settings.DEFAULT_LANGUAGE:
         base_url += '%s/' % language
 
-    node = tree.find_descendant(path_str)
+    node = tree.find_descendant(path)
     if not node:
         pass  # TODO Raise!
     slugs = node.get_slugs()
 
-    if path_str != settings.DEFAULT_PAGE:
+    if path != settings.DEFAULT_PAGE:
         cleaned_slugs = filter(bool, slugs)
         return base_url + '/'.join(cleaned_slugs) + '/'
     else:
@@ -230,7 +234,7 @@ def build_(source_dir, build_dir, language=None):
         assets_env=assets_env,
         translations=translations)
 
-    build_tree(jinja2_env, build_dir, tree)
+    build_from_tree(jinja2_env, build_dir, tree)
 
 
 def build(source_dir, build_dir):

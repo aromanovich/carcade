@@ -17,6 +17,7 @@ class Node(object):
         self.children = []
         self.name = name
         self.source_dir = source_dir
+        self.ascendant = None
 
     def add_child(self, node):
         self.children.append(node)
@@ -34,7 +35,26 @@ class Node(object):
             if page_child:
                 return page_child
 
-    def get_slug(self):
+    def get_slugs(self):
+        slugs = []
+
+        node = self
+        intermediate = False
+        while node.ascendant:
+            slugs.append(node.get_slug(intermediate=intermediate))
+            node = node.ascendant
+            intermediate = True
+        return reversed(slugs)
+
+    def find_descendant(self, path):
+        if '/' in path:
+            child_name, rest = path.split('/', 1)
+            child = self.get_child(child_name)
+            return child and child.find_descendant(rest)
+        else:
+            return self.get_child(path)
+
+    def get_slug(self, intermediate=False):
         if self.name == 'ROOT':
             return ''
         return self.name
@@ -45,7 +65,9 @@ class PageNode(Node):
         self.index = index
         super(PageNode, self).__init__(source_dir, settings.PAGE_NAME % index)
 
-    def get_slug(self):
+    def get_slug(self, intermediate=False):
+        if intermediate:
+            return ''
         if self.index == 1:
             return ''
         return super(PageNode, self).get_slug()
@@ -167,25 +189,6 @@ def build_tree(jinja2_env, build_dir, node, root=None, path=[]):
         target_file.write(template.render(**context))
 
 
-def get_slugs(node, path=[]):
-    """If page at `path` exists, returns slugs of the nodes lies on that path;
-    otherwise throws an exception.
-    """
-    slug = node.get_slug()
-
-    if not path:  # Recursion base
-        return [slug]
-
-    if isinstance(node, PageNode):
-        slug = ''
-
-    head, rest = path[0], path[1:]
-    child = node.get_child(head)
-    if not child:
-        pass  # TODO Raise error
-    return [slug] + get_slugs(child, path=rest)
-
-
 def url_for(tree, path_str, language=None):
     """If page at `path` exists, returns it's root-relative URL;
     otherwise throws an exception.
@@ -194,7 +197,10 @@ def url_for(tree, path_str, language=None):
     if language and language != settings.DEFAULT_LANGUAGE:
         base_url += '%s/' % language
 
-    slugs = get_slugs(tree, path=path_str.split('/'))
+    node = tree.find_descendant(path_str)
+    if not node:
+        pass  # TODO Raise!
+    slugs = node.get_slugs()
 
     if path_str != settings.DEFAULT_PAGE:
         cleaned_slugs = filter(bool, slugs)

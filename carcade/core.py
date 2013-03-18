@@ -13,19 +13,42 @@ from carcade.exceptions import UnknownPathException, UnknownOrderingException
 
 
 class Node(object):
-    """Tree node."""
+    """Node of the site tree.
+    
+    .. attribute:: name
+
+       Name.
+    
+    .. attribute:: children
+
+       List of child nodes.
+    
+    .. attribute:: source_dir
+
+       Path of the directory reflected by this node.
+    
+    .. attribute:: parent
+
+       Parent node.
+    """
 
     def __init__(self, source_dir, name):
-        self.children = []
         self.name = name
+        self.children = []
         self.source_dir = source_dir
-        self.ascendant = None
+        self.parent = None
 
     def add_child(self, node):
+        """Adds `node` to the child nodes."""
         self.children.append(node)
-        node.ascendant = self
+        node.parent = self
 
     def get_child(self, name):
+        """First tries to find and return immediate child called `name`.
+        Then continues search by calling `get_child` on every immediate
+        child :class:`PageNode`.
+        If nothing found, returns ``None``.
+        """
         for child in self.children:
             if child.name == name:
                 return child
@@ -37,26 +60,10 @@ class Node(object):
             if page_child:
                 return page_child
     
-    def get_path(self):
-        names = []
-        node = self
-        while node.ascendant:
-            names.append(node.name)
-            node = node.ascendant
-        return '/'.join(reversed(names))
-
-    def get_slugs(self):
-        slugs = []
-
-        node = self
-        intermediate = False
-        while node.ascendant:
-            slugs.append(node.get_slug(intermediate=intermediate))
-            node = node.ascendant
-            intermediate = True
-        return reversed(slugs)
-
     def find_descendant(self, path):
+        """Returns descendant node identified by `path`.
+        If nothing found, returns ``None``.
+        """
         if '/' in path:
             child_name, rest = path.split('/', 1)
             child = self.get_child(child_name)
@@ -65,25 +72,64 @@ class Node(object):
             return self.get_child(path)
 
     def get_slug(self, intermediate=False):
+        """Returns node slug -- string used to build page URL.
+
+        Slug can vary depend on where it's going to be used: in the middle
+        of the URL (in that case `intermediate` is ``True``) or in the end
+        (`intermediate` is  ``False``).
+        """
         if self.name == 'ROOT':
             return ''
         return self.name
 
+    def get_path(self):
+        """Returns node path."""
+        names = []
+        node = self
+        while node.parent:
+            names.append(node.name)
+            node = node.parent
+        return '/'.join(reversed(names))
+
+    def get_slugs(self):
+        """Returns ancestor nodes slugs ordered from top (root)
+        to bottom (this node).
+        """
+        slugs = []
+        intermediate = False
+        node = self
+        while node.parent:
+            slugs.append(node.get_slug(intermediate=intermediate))
+            intermediate = True
+            node = node.parent
+        return reversed(slugs)
+
 
 class PageNode(Node):
+    """Represents pages created during automatic pagination
+    (see :func:`paginate_tree`). Subclasses :class:`Node`.
+       
+    .. attribute:: index
+
+       1-based index.
+    """
+
     def __init__(self, source_dir, index):
         self.index = index
         super(PageNode, self).__init__(source_dir, settings.PAGE_NAME % index)
 
     def get_slug(self, intermediate=False):
-        if intermediate:
-            return ''
-        if self.index == 1:
+        """If node represents first page or if slug going to be used in
+        the middle of the URL, returns empty string.
+        Otherwise returns node name.
+        """
+        if self.index == 1 or intermediate:
             return ''
         return super(PageNode, self).get_slug()
 
 
 def create_tree(page_dir, page_name):
+    """Creates tree that reflects the structure of `page_dir`."""
     node = Node(page_dir, page_name)
 
     for subpage_name in os.listdir(page_dir):
@@ -96,6 +142,15 @@ def create_tree(page_dir, page_name):
 
 
 def sort_tree(node, ordering_dict):
+    """Recursively sorts the tree according to the `ordering_dict` --
+    a dictionary where keys are node paths and values are the following:
+
+    1. ``'alphabetically'``: children will be sorted by their names
+    2. ``names list``: children will be sorted in the order in which their
+       names appear in the list (see :func:`utils.sort`)
+    3. ``callable``: will be called with list of children and must
+       return it sorted.
+    """
     path = node.get_path()
     key = path and path + '/*' or '*'
     ordering = ordering_dict.get(key)
@@ -116,6 +171,14 @@ def sort_tree(node, ordering_dict):
 
 
 def paginate_tree(node, pagination_dict):
+    """Recursively paginates tree according to the `pagination_dict` --
+    a dictionary where keys are node paths and values are the numbers of
+    the items per page (let's denote it `n`).
+
+    If `node` path is in `pagination_dict`, it's children detached
+    from it, split into the chunks of size `n` and then each chunk
+    attached back to the `node` through intermediate :class:`PageNode`.
+    """
     path = node.get_path()
     key = path and path + '/*' or '*'
     items_per_page = pagination_dict.get(key)
@@ -137,6 +200,19 @@ def paginate_tree(node, pagination_dict):
 
 
 def fill_tree(node, language=None):
+    """Recursively walks the tree and annotates each node with context.
+    
+    Calls :func:`utils.read_context` and combines it's result with the
+    following data:
+
+    * ``NAME``: `node.name`,
+    * ``PATH``: `node.get_path()`,
+    * ``LANGUAGE``: `language`,
+    * ``CHILDREN``: list of the child contexts
+    * ``SIBLINGS``: list of the sibling contexts
+    * ``PARENT``: parent's context
+    * ``PREV_SIBLING``, ``NEXT_SIBLING``: adjacent siblings contexts
+    """
     context = read_context(node.source_dir, language=language)
 
     child_contexts = []
@@ -172,6 +248,14 @@ def fill_tree(node, language=None):
 
 
 def build_site(jinja2_env, build_dir, node, root=None):
+    """Given the site tree, builds the site. The main steps are the following:
+
+    1. Build chidren subtrees;
+    2. Determine `index.html` directory (which is basically
+       `build_dir`-related url of `node`);
+    3. Define which template to use based on a `LAYOUTS` setting;
+    4. Render template with node context and write result to `index.html`.
+    """
     for child in node.children:
         build_site(jinja2_env, build_dir, child, root=root or node)
 
@@ -192,9 +276,9 @@ def build_site(jinja2_env, build_dir, node, root=None):
 
     layout_key = path
     if isinstance(node, PageNode):
-        layout_key = node.ascendant.get_path()
-
+        layout_key = node.parent.get_path()
     template = jinja2_env.get_template(settings.LAYOUTS[layout_key])
+
     template.stream(ROOT=root.context, **node.context) \
             .dump(target_filename, encoding='utf-8')
 
@@ -221,6 +305,14 @@ def url_for(root, path, language=None):
 
 
 def build_(source_dir, build_dir, language=None):
+    """
+    1. Creates the tree from `source_dir` (:func:`create_tree`),
+       sorts it (:func:`sort_tree`), paginates (:func:`paginate_tree`) and
+       fills with contexts in given `language` (:func:`fill_tree`);
+    2. Tries to load translation from `./translations/<language>.po`;
+    3. Creates Jinja2 environment with webassets and i18n extensions and
+       passes it to :func:`build_site`.
+    """
     source_path = lambda *args: os.path.join(source_dir, *args)
 
     tree = create_tree(source_path('pages'), 'ROOT')
@@ -252,6 +344,6 @@ def build(source_dir, build_dir):
                 build_(source_dir, build_dir, language=language)
         else:
             build_(source_dir, build_dir)
-    except Exception:
+    except:
         shutil.rmtree(build_dir)
         raise

@@ -6,9 +6,9 @@ import codecs
 import itertools
 
 import yaml
-import markdown
 
 from carcade.conf import settings
+from carcade.environments import create_markdown_parser
 
 
 class RegexResolver(object):
@@ -87,11 +87,6 @@ def yield_files(dir_, suffix):
     for filename in glob.glob(os.path.join(dir_, '*' + suffix)):
         with codecs.open(filename, 'r', 'utf-8') as file_:
             yield file_
-
-
-def create_markdown_parser():
-    """Creates Markdown parser with extensions."""
-    return markdown.Markdown(['extra'])
 
 
 def read_context(dir_, language=None):

@@ -1,7 +1,11 @@
 import jinja2
 import webassets
+import markdown
 
-from carcade.utils import create_markdown_parser
+
+def create_markdown_parser():
+    """Creates Markdown parser with extensions."""
+    return markdown.Markdown(['extra'])
 
 
 def create_assets_env(source_dir, build_dir, bundles):
@@ -39,8 +43,10 @@ def create_jinja2_url_for(url_for):
 
 def create_jinja2_env(layouts_dir='layouts', url_for=None,
                       translations=None, assets_env=None):
-    """Creates :class:`jinja2.Environment`. Installs `translations` if
-    specified; installs webassets extension with `assets_env` if specified.
+    """Creates :class:`jinja2.Environment`.
+    
+    Installs `translations` if specified;
+    installs webassets extension with `assets_env` if specified.
 
     :type layouts_dir: path to templates directory
     :type translations: :class:`gettext.GNUTranslations`

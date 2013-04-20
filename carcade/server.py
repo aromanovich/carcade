@@ -35,8 +35,9 @@ class EventHandler(FileSystemEventHandler):
         self._new_changes_event.set()
 
 
-class Builder(threading.Thread):
-    """Daemon thread that waits for the changes and then shuts down the server.
+class Shutdowner(threading.Thread):
+    """Daemon thread that waits for the changes and then
+    shuts down the server.
     """
 
     def __init__(self, http_server, new_changes_event):
@@ -46,7 +47,7 @@ class Builder(threading.Thread):
         :param new_changes_event: event to be listened to
         :type new_changes_event: :class:`threading.Event`
         """
-        super(Builder, self).__init__()
+        super(Shutdowner, self).__init__()
         self.daemon = True
         self._http_server = http_server
         self._new_changes_event = new_changes_event
@@ -59,15 +60,18 @@ class Builder(threading.Thread):
 
 
 def serve(host='localhost', port=8000):
+    """Runs the development server at given `host` and `port`,
+    watches the changes and regenerates the site.
+    """
     http_server = BaseHTTPServer.HTTPServer(
         (host, port), SimpleHTTPServer.SimpleHTTPRequestHandler)
 
     # Event to be set when the project has changes and needs to be rebuilt
     new_changes_event = threading.Event()
 
-    # Both `builder` and `observer` are daemon threads
-    builder = Builder(http_server, new_changes_event)
-    builder.start()
+    # Both `shutdowner` and `observer` are daemon threads
+    shutdowner = Shutdowner(http_server, new_changes_event)
+    shutdowner.start()
 
     observer = Observer()
     observer.start()
@@ -77,7 +81,7 @@ def serve(host='localhost', port=8000):
     event_handler = EventHandler(project_dir, new_changes_event)
     observer.schedule(event_handler, path=project_dir, recursive=True)
 
-    from carcade.cli import build  # Circular import
+    from carcade.cli import build  # To resolve a circular import
     while True:
         os.chdir(project_dir)
         build(to=www_dir, atomically=True)

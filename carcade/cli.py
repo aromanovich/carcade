@@ -31,7 +31,7 @@ def init(project):
 
 def build(to='www', atomically=False):
     """Builds the site."""
-    settings.configure('carcade_settings')
+    settings.configure('settings')
 
     print 'Build...'
     try:
@@ -81,13 +81,13 @@ def runserver(host='localhost', port=8000):
     """Fires up a server that will host `www` directory, monitor
     the changes and regenerate the site automatically.
     """
-    settings.configure('carcade_settings')
+    settings.configure('settings')
     server.serve(host=host, port=port)
 
 
 def extract_messages(to='translations/messages.pot'):
     """Extracts localizable strings from the templates."""
-    settings.configure('carcade_settings')
+    settings.configure('settings')
     jinja2_env = create_jinja2_env()
     extract_translations(jinja2_env, to)
 
@@ -95,5 +95,10 @@ def extract_messages(to='translations/messages.pot'):
 def main():
     sys.path.append(os.getcwd())
     parser = argh.ArghParser()
-    parser.add_commands([init, build, runserver, extract_messages])
+    parser.add_commands([
+        init,
+        build,
+        runserver,
+        extract_messages,
+    ])
     parser.dispatch()

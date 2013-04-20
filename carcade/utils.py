@@ -12,16 +12,29 @@ from carcade.environments import create_markdown_parser
 
 
 class RegexResolver(object):
+    """Provides the facility to return the first matched value from the list
+    of `(regexp, value)` pairs.
+    """
     def __init__(self, items):
+        """
+        :param items: List of tuples `(compiled regexp, value)`
+        """
         self.items = items
 
     def __getitem__(self, key):
+        """Returns the first matched value or raises :class:`KeyError`."""
         for regex, value in self.items:
             if regex.match(key):
                 return value
         raise KeyError(key)
 
     def get(self, key, default=None):
+        """Returns the first matched value or `default`.
+       
+        :param key: basestring that will be sequentially tested with all
+                    regexps from `items` list 
+        """
+
         try:
             return self[key]
         except KeyError:
@@ -29,6 +42,16 @@ class RegexResolver(object):
 
 
 def patterns(*args):
+    """Helper to create :class:`RegexResolver`. Example:
+      
+    ::
+        
+        LAYOUTS = patterns(
+            (r'^content$', 'content.html'),
+            (r'^content/.*$', 'speech.html'),
+            (r'^.*$', 'page.html'),
+        )
+    """
     items = []
     for pattern, value in args:
         items.append((re.compile(pattern), value))
@@ -72,7 +95,7 @@ def paginate(items, items_per_page):
 
     >>> paginate([1, 2, 3, 4, 5, 6, 7], 3)
     [[1, 2, 3], [4, 5, 6], [7]]
-    
+
     >>> paginate([], 3)
     []
     """
@@ -83,7 +106,7 @@ def paginate(items, items_per_page):
 
 
 def yield_files(dir_, suffix):
-    """Yiels files from `directory` which name ends with `suffix`."""
+    """Yields files from `directory` which name ends with `suffix`."""
     for filename in glob.glob(os.path.join(dir_, '*' + suffix)):
         with codecs.open(filename, 'r', 'utf-8') as file_:
             yield file_
@@ -93,12 +116,14 @@ def read_context(dir_, language=None):
     """Searches `dir_` for markdown- and yaml-files and returns context
     dictionary with parsed data.
 
-    Markdown- and yaml-files are files which names matched to ``<name>.(md|yaml)``
-    or ``<name>.<language>.(md|yaml)`` pattern if `language` specified.
+    Markdown and YAML files are files which names matched to
+    ``<name>.(md|yaml)`` or ``<name>.<language>.(md|yaml)`` pattern if
+    `language` specified.
 
-    First parses each markdown-file and puts result into context under the
-    `<name>` key. Then parses each yaml-file and updates context with resulting
-    dictionary (note: update will override markdown data if there are duplicate keys).
+    First parses each Markdown file and puts result into context under the
+    `<name>` key. Then parses each YAML file and updates context with resulting
+    dictionary (note: update will override markdown data if there are
+    duplicate keys).
     """
     context = {}
 

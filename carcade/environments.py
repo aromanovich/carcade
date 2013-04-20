@@ -44,7 +44,7 @@ def create_jinja2_url_for(url_for):
 def create_jinja2_env(layouts_dir='layouts', url_for=None,
                       translations=None, assets_env=None):
     """Creates :class:`jinja2.Environment`.
-    
+
     Installs `translations` if specified;
     installs webassets extension with `assets_env` if specified.
 

@@ -42,8 +42,8 @@ class Test(unittest.TestCase):
         }
         self.assert_tree_structure(tree, expected_tree_structure)
 
-        tree = sort_tree(tree, {'blog/*': 'alphabetically'})
-        tree = paginate_tree(tree, {'blog/*': 2})
+        tree = sort_tree(tree, {'blog': 'alphabetically'})
+        tree = paginate_tree(tree, {'blog': 2})
         expected_tree_structure = {
             'blog': {
                 'page1': {

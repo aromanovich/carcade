@@ -14,19 +14,19 @@ from carcade.exceptions import UnknownPathException, UnknownOrderingException
 
 class Node(object):
     """Node of the site tree.
-    
+
     .. attribute:: name
 
        Name.
-    
+
     .. attribute:: children
 
        List of child nodes.
-    
+
     .. attribute:: source_dir
 
        Path of the directory reflected by this node.
-    
+
     .. attribute:: parent
 
        Parent node.
@@ -59,7 +59,7 @@ class Node(object):
             page_child = child.get_child(name)
             if page_child:
                 return page_child
-    
+
     def find_descendant(self, path):
         """Returns descendant node identified by `path`.
         If nothing found, returns ``None``.
@@ -78,7 +78,7 @@ class Node(object):
         of the URL (in that case `intermediate` is ``True``) or in the end
         (`intermediate` is  ``False``).
         """
-        if self.name == 'ROOT':
+        if self.name == 'ROOT' or self.get_path() == settings.DEFAULT_PAGE:
             return ''
         return self.name
 
@@ -108,7 +108,7 @@ class Node(object):
 class PageNode(Node):
     """Represents pages created during automatic pagination
     (see :func:`paginate_tree`). Subclasses :class:`Node`.
-       
+
     .. attribute:: index
 
        1-based index.
@@ -152,7 +152,7 @@ def sort_tree(node, ordering_dict):
        return it sorted.
     """
     path = node.get_path()
-    key = path and path + '/*' or '*'
+    key = path or '*'
     ordering = ordering_dict.get(key)
 
     if ordering:
@@ -180,7 +180,7 @@ def paginate_tree(node, pagination_dict):
     attached back to the `node` through intermediate :class:`PageNode`.
     """
     path = node.get_path()
-    key = path and path + '/*' or '*'
+    key = path or '*'
     items_per_page = pagination_dict.get(key)
 
     if items_per_page:
@@ -201,17 +201,17 @@ def paginate_tree(node, pagination_dict):
 
 def fill_tree(node, language=None):
     """Recursively walks the tree and annotates each node with context.
-    
+
     Calls :func:`utils.read_context` and combines it's result with the
     following data:
 
-    * ``NAME``: `node.name`,
-    * ``PATH``: `node.get_path()`,
-    * ``LANGUAGE``: `language`,
-    * ``CHILDREN``: list of the child contexts
-    * ``SIBLINGS``: list of the sibling contexts
-    * ``PARENT``: parent's context
-    * ``PREV_SIBLING``, ``NEXT_SIBLING``: adjacent siblings contexts
+    * ``NAME``: `node.name`;
+    * ``PATH``: `node.get_path()`;
+    * ``LANGUAGE``: `language`;
+    * ``CHILDREN``: list of the child contexts;
+    * ``SIBLINGS``: list of the sibling contexts;
+    * ``PARENT``: parent's context;
+    * ``PREV_SIBLING``, ``NEXT_SIBLING``: adjacent siblings contexts.
     """
     context = read_context(node.source_dir, language=language)
 

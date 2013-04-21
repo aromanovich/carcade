@@ -3,7 +3,10 @@ Overview
 
 Installation
 ------------
+Carcade is available on PyPI:
 
+  ::
+    
     $ pip install carcade
 
 Project structure

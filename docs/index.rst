@@ -49,7 +49,7 @@ Content
 .. toctree::
    :maxdepth: 2
 
-   getting-started
+   overview
    example
    settings
    cli

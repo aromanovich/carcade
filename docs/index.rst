@@ -1,7 +1,7 @@
 Welcome to Carcade's documentation!
 ===================================
 
-Carcade is the static site generator written in Python. Main features are:
+Carcade is the static site generator written in Python. The main features are:
 
 * Jinja2 templates
 * Static assets management

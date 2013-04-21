@@ -1,6 +1,11 @@
 Overview
 ========
 
+Installation
+------------
+
+    $ pip install carcade
+
 Project structure
 -----------------
 ``carcade init <name>`` creates a brand-new project that contains the following entries:

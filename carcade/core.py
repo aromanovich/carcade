@@ -287,7 +287,7 @@ def url_for(root, path, language=None):
     """If page at `path` exists, returns it's root-relative URL;
     otherwise throws an exception.
     """
-    base_url = '/'
+    base_url = settings.BASE_URL
     if language and language != settings.DEFAULT_LANGUAGE:
         base_url += '%s/' % language
 

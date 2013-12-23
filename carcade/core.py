@@ -279,8 +279,8 @@ def build_site(jinja2_env, build_dir, node, root=None):
         layout_key = node.parent.get_path()
     template = jinja2_env.get_template(settings.LAYOUTS[layout_key])
 
-    template.stream(ROOT=root.context, **node.context) \
-            .dump(target_filename, encoding='utf-8')
+    template.stream(ROOT=root.context, **node.context).dump(
+        target_filename, encoding='utf-8')
 
 
 def url_for(root, path, language=None):
@@ -304,7 +304,7 @@ def url_for(root, path, language=None):
     return base_url
 
 
-def build_(source_dir, build_dir, language=None):
+def build_(source_dir, build_dir, static_dir, language=None):
     """
     1. Creates the tree from `source_dir` (:func:`create_tree`),
        sorts it (:func:`sort_tree`), paginates (:func:`paginate_tree`) and
@@ -327,7 +327,7 @@ def build_(source_dir, build_dir, language=None):
             translations = get_translations(translations_path)
 
     assets_env = create_assets_env(
-        source_path('static'), build_dir, settings.BUNDLES)
+        source_path('static'), static_dir, settings.STATIC_URL, settings.BUNDLES)
     jinja2_env = create_jinja2_env(
         url_for=partial(url_for, tree),
         assets_env=assets_env,
@@ -337,13 +337,14 @@ def build_(source_dir, build_dir, language=None):
 
 
 def build(source_dir, build_dir):
-    shutil.copytree(os.path.join(source_dir, 'static'), build_dir)
+    static_dir = os.path.join(build_dir, settings.STATIC_URL.lstrip('/'))
+    shutil.copytree(os.path.join(source_dir, 'static'), static_dir)
     try:
         if settings.LANGUAGES:
             for language in settings.LANGUAGES:
-                build_(source_dir, build_dir, language=language)
+                build_(source_dir, build_dir, static_dir, language=language)
         else:
-            build_(source_dir, build_dir)
+            build_(source_dir, static_dir, build_dir)
     except:
         shutil.rmtree(build_dir)
         raise

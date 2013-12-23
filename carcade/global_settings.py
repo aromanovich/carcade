@@ -1,6 +1,7 @@
 LANGUAGES = None
 
 BASE_URL = '/'
+STATIC_URL = '/'
 DEFAULT_PAGE = None
 DEFAULT_LANGUAGE = None
 

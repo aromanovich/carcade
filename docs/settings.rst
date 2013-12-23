@@ -1,6 +1,18 @@
 Settings
 ========
 
+* .. _base-url-setting:
+
+  .. describe:: BASE_URL = '/'
+
+  Root-relative URL where the site will live. Must end with slash.
+
+* .. _static-url-setting:
+
+  .. describe:: STATIC_URL = '/'
+
+  Root-relative URL where the static files will be placed.
+
 * .. _languages-setting:
 
   .. describe:: LANGUAGES = None

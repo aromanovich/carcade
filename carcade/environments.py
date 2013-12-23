@@ -2,13 +2,15 @@ import jinja2
 import webassets
 import markdown
 
+from .conf import settings
+
 
 def create_markdown_parser():
     """Creates Markdown parser with extensions."""
     return markdown.Markdown(['extra'])
 
 
-def create_assets_env(source_dir, build_dir, bundles):
+def create_assets_env(source_dir, build_dir, build_url, bundles):
     """Creates webassets environment with registered `bundles`.
 
     :param source_dir: directory that will be searched for source files
@@ -21,7 +23,7 @@ def create_assets_env(source_dir, build_dir, bundles):
     env.config.update({
         'load_path': [source_dir],
         'directory': build_dir,
-        'url': '/',
+        'url': build_url,
         'manifest': False,
         'cache': False,
     })
@@ -48,7 +50,7 @@ def create_jinja2_env(layouts_dir='layouts', url_for=None,
     Installs `translations` if specified;
     installs webassets extension with `assets_env` if specified.
 
-    :type layouts_dir: path to templates directory
+    :param layouts_dir: path to templates directory
     :type translations: :class:`gettext.GNUTranslations`
     :type assets_env: :class:`webassets.Environment`
     """
@@ -58,10 +60,9 @@ def create_jinja2_env(layouts_dir='layouts', url_for=None,
     jinja2_env.install_null_translations(newstyle=True)
     jinja2_env.filters['markdown'] = create_markdown_parser().convert
 
+    jinja2_env.globals['STATIC_URL'] = settings.STATIC_URL
     if url_for:
-        jinja2_env.globals.update({
-            'url_for': create_jinja2_url_for(url_for),
-        })
+        jinja2_env.globals['url_for'] = create_jinja2_url_for(url_for)
 
     # Empty webassets environment evaluates to False in boolean context
     if assets_env is not None:

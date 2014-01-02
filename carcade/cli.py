@@ -94,11 +94,9 @@ def extract_messages(to='translations/messages.pot'):
 
 def main():
     sys.path.append(os.getcwd())
-    parser = argh.ArghParser()
-    parser.add_commands([
+    argh.dispatch_commands([
         init,
         build,
         runserver,
         extract_messages,
     ])
-    parser.dispatch()

@@ -20,7 +20,11 @@ class WebassetsEnvironmentTest(unittest.TestCase):
 
     def test(self):
         bundle = Bundle('one.css', 'two.css', output='styles.css')
-        assets_env = create_assets_env('./tests/fixtures/bundle', self.build_dir, {})
+        assets_env = create_assets_env(
+            source_dir='./tests/fixtures/bundle',
+            build_dir=self.build_dir,
+            static_url='/',
+            bundles={})
         bundle.build(env=assets_env)
 
         self.assertTrue('styles.css' in os.listdir(self.build_dir))
@@ -35,9 +39,13 @@ class Jinja2EnvironmentTest(unittest.TestCase):
 
     def test_webassets_integration(self):
         template = '{% assets "css" %}{{ ASSET_URL }}{% endassets %}'
-        assets_env = create_assets_env('./tests/fixtures/bundle', self.build_dir, {
-            'css': Bundle('one.css', 'two.css', output='styles.css')
-        })
+        assets_env = create_assets_env(
+            source_dir='./tests/fixtures/bundle',
+            build_dir=self.build_dir,
+            static_url='/',
+            bundles={
+                'css': Bundle('one.css', 'two.css', output='styles.css'),
+            })
         jinja2_env = create_jinja2_env(assets_env=assets_env)
         result = jinja2_env.from_string(template).render()
         self.assertTrue('styles.css' in result)

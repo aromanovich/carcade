@@ -14,13 +14,13 @@ class TranslationsExtractionTest(unittest.TestCase):
         with tempfile.NamedTemporaryFile() as pot_file:
             extract_translations(jinja2_env, pot_file.name)
             po_entries = polib.pofile(pot_file.name)
-            
+
             self.assertEqual(
                 str(po_entries[0]),
                 '#: test.html:1\n'
                 'msgid "Static"\n'
                 'msgstr "Static"\n')
-            
+
             self.assertEqual(
                 str(po_entries[1]),
                 '#: test.html:1 test.html:3\n'

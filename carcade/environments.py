@@ -10,20 +10,21 @@ def create_markdown_parser():
     return markdown.Markdown(['extra'])
 
 
-def create_assets_env(source_dir, build_dir, build_url, bundles):
+def create_assets_env(source_dir, build_dir, static_url, bundles):
     """Creates webassets environment with registered `bundles`.
 
     :param source_dir: directory that will be searched for source files
     :param build_dir: output directory (bundle's `output` will be treated
                       relative to it)
-    :param bundles: dictionary with bundle names as keys and to bundles
+    :param static_url: root-relative static folder URL
+    :param bundles: dictionary with bundle names as keys and bundles
                     (:class:`webassets.Bundle`) as values
     """
     env = webassets.Environment()
     env.config.update({
         'load_path': [source_dir],
         'directory': build_dir,
-        'url': build_url,
+        'url': static_url,
         'manifest': False,
         'cache': False,
     })

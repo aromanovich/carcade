@@ -105,9 +105,11 @@ def paginate(items, items_per_page):
     return result
 
 
-def yield_files(dir_, suffix):
+def yield_files(dir_, suffix, exclude_extensions=()):
     """Yields files from `directory` which name ends with `suffix`."""
     for filename in glob.glob(os.path.join(dir_, '*' + suffix)):
+        if any(filename.endswith(ext) for ext in exclude_extensions):
+            continue
         with codecs.open(filename, 'r', 'utf-8') as file_:
             yield file_
 
@@ -127,7 +129,8 @@ def read_context(dir_, language=None):
     """
     context = {}
 
-    md_files = yield_files(dir_, '.md')
+    md_files = yield_files(
+        dir_, '.md', exclude_extensions=['.{}.md'.format(lang) for lang in settings.LANGUAGES])
     md_parser = create_markdown_parser()
     if language:
         lang_specific_md_files = yield_files(dir_, '.%s.md' % language)
@@ -136,7 +139,8 @@ def read_context(dir_, language=None):
         var_name, suffix = os.path.basename(md_file.name).split('.', 1)
         context[var_name] = md_parser.convert(md_file.read())
 
-    yaml_files = yield_files(dir_, '.yaml')
+    yaml_files = yield_files(
+        dir_, '.yaml', exclude_extensions=['.{}.yaml'.format(lang) for lang in settings.LANGUAGES])
     if language:
         lang_specific_yaml_files = yield_files(dir_, '.%s.yaml' % language)
         yaml_files = itertools.chain(yaml_files, lang_specific_yaml_files)
